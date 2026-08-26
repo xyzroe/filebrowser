@@ -100,6 +100,14 @@ func tusPostHandler(cache UploadCache) handleFunc {
 				return http.StatusForbidden, nil
 			}
 
+			// See resourcePostHandler: a managed file cannot be overwritten by a
+			// generic upload either, chunked or not.
+			if managed, merr := d.isManaged(r.URL.Path); merr != nil {
+				return http.StatusInternalServerError, merr
+			} else if managed {
+				return http.StatusConflict, fmt.Errorf("this file is managed by version history; use check-in to replace its content")
+			}
+
 			fileFlags |= os.O_TRUNC
 		}
 
@@ -288,6 +296,10 @@ func tusPatchUpload(w http.ResponseWriter, r *http.Request, d *data, cache Uploa
 	if newOffset >= uploadLength {
 		cache.Complete(file.RealPath())
 		_ = d.RunHook(func() error { return nil }, "upload", r.URL.Path, "", d.user)
+		// registerNewFile is idempotent (see versioning.Service.IndexPath/
+		// createManaged): a no-op if the path is already managed, so this is
+		// safe to call unconditionally on every completed chunked upload.
+		d.registerNewFile(r.URL.Path)
 	}
 
 	return http.StatusNoContent, nil

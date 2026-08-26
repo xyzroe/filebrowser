@@ -29,6 +29,11 @@ import Upload from "./Upload.vue";
 import DiscardEditorChanges from "./DiscardEditorChanges.vue";
 import ResolveConflict from "./ResolveConflict.vue";
 import CurrentPassword from "./CurrentPassword.vue";
+import Checkout from "./Checkout.vue";
+import CheckIn from "./CheckIn.vue";
+import Versions from "./Versions.vue";
+import CancelCheckout from "./CancelCheckout.vue";
+import ForceUnlock from "./ForceUnlock.vue";
 
 const layoutStore = useLayoutStore();
 
@@ -52,6 +57,11 @@ const components = new Map<string, any>([
   ["discardEditorChanges", DiscardEditorChanges],
   ["resolve-conflict", ResolveConflict],
   ["current-password", CurrentPassword],
+  ["checkout", Checkout],
+  ["checkin", CheckIn],
+  ["versions", Versions],
+  ["cancel-checkout", CancelCheckout],
+  ["force-unlock", ForceUnlock],
 ]);
 
 const modal = computed(() => {

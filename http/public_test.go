@@ -131,7 +131,7 @@ func TestPublicShareHandlerAuthentication(t *testing.T) {
 				}
 
 				recorder := httptest.NewRecorder()
-				handler := handle(handler, "", storage, &settings.Server{})
+				handler := handle(handler, "", storage, &settings.Server{}, nil)
 
 				handler.ServeHTTP(recorder, tc.req)
 				result := recorder.Result()
@@ -242,7 +242,7 @@ func TestPublicShareHandlerRules(t *testing.T) {
 			req := newHTTPRequest(t, func(r *http.Request) { r.URL.Path = tc.path })
 
 			recorder := httptest.NewRecorder()
-			handler := handle(tc.handler, "", storage, &settings.Server{})
+			handler := handle(tc.handler, "", storage, &settings.Server{}, nil)
 
 			handler.ServeHTTP(recorder, req)
 			result := recorder.Result()

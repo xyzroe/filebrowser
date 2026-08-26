@@ -105,7 +105,7 @@ func TestTusHandlersRejectSymlinkScopeEscape(t *testing.T) {
 			}
 
 			recorder := httptest.NewRecorder()
-			handler := handle(tc.handler, "", st, &settings.Server{})
+			handler := handle(tc.handler, "", st, &settings.Server{}, nil)
 			handler.ServeHTTP(recorder, req)
 
 			if recorder.Code != http.StatusForbidden {

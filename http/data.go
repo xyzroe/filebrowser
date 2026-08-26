@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	gopath "path"
+	"path/filepath"
 	"strconv"
 
 	"github.com/tomasen/realip"
@@ -13,17 +14,19 @@ import (
 	"github.com/filebrowser/filebrowser/v2/settings"
 	"github.com/filebrowser/filebrowser/v2/storage"
 	"github.com/filebrowser/filebrowser/v2/users"
+	"github.com/filebrowser/filebrowser/v2/versioning"
 )
 
 type handleFunc func(w http.ResponseWriter, r *http.Request, d *data) (int, error)
 
 type data struct {
 	*runner.Runner
-	settings *settings.Settings
-	server   *settings.Server
-	store    *storage.Storage
-	user     *users.User
-	raw      interface{}
+	settings   *settings.Settings
+	server     *settings.Server
+	store      *storage.Storage
+	versioning *versioning.Service
+	user       *users.User
+	raw        interface{}
 
 	// checkerPrefix is prepended to every path before evaluating rules. It is
 	// set when the user's filesystem has been rebased onto a subdirectory (as
@@ -84,7 +87,22 @@ func (d *data) rulePath(path string) string {
 	return path
 }
 
-func handle(fn handleFunc, prefix string, store *storage.Storage, server *settings.Server) http.Handler {
+// canonicalPath resolves a request path (relative to the requesting user's
+// scoped filesystem) to the path-independent, source-relative form used by
+// the versioning package: an absolute, "/"-separated path relative to
+// server.Root, regardless of which user's scope was used to reach the file.
+// This is what makes a logical file's identity (and its lock) the same file
+// no matter which user or share exposes it.
+func (d *data) canonicalPath(path string) (string, error) {
+	full := d.user.FullPath(path)
+	rel, err := filepath.Rel(d.server.Root, full)
+	if err != nil {
+		return "", err
+	}
+	return "/" + filepath.ToSlash(rel), nil
+}
+
+func handle(fn handleFunc, prefix string, store *storage.Storage, server *settings.Server, versioningSvc *versioning.Service) http.Handler {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		for k, v := range globalHeaders {
 			w.Header().Set(k, v)
@@ -97,10 +115,11 @@ func handle(fn handleFunc, prefix string, store *storage.Storage, server *settin
 		}
 
 		status, err := fn(w, r, &data{
-			Runner:   &runner.Runner{Enabled: server.EnableExec, Settings: settings},
-			store:    store,
-			settings: settings,
-			server:   server,
+			Runner:     &runner.Runner{Enabled: server.EnableExec, Settings: settings},
+			store:      store,
+			settings:   settings,
+			server:     server,
+			versioning: versioningSvc,
 		})
 
 		if status >= 400 || err != nil {

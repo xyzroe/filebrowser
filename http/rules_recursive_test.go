@@ -49,7 +49,7 @@ func TestRecursiveOperationsEnforceDescendantRules(t *testing.T) {
 		req, _ := http.NewRequest(method, target, http.NoBody)
 		req.Header.Set("X-Auth", signToken(t, perm, key))
 		rec := httptest.NewRecorder()
-		handle(handler, "", st, &settings.Server{}).ServeHTTP(rec, req)
+		handle(handler, "", st, &settings.Server{}, nil).ServeHTTP(rec, req)
 		return rec
 	}
 

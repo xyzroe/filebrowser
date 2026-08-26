@@ -66,6 +66,42 @@
           :counter="fileStore.selectedCount"
         />
         <action
+          v-if="lockActions.takeForWork"
+          icon="lock_open"
+          :label="t('buttons.takeForWork')"
+          show="checkout"
+        />
+        <action
+          v-if="lockActions.downloadAgain"
+          icon="file_download"
+          :label="t('buttons.downloadAgain')"
+          @action="downloadAgainAction"
+        />
+        <action
+          v-if="lockActions.checkIn"
+          icon="upload_file"
+          :label="t('buttons.checkIn')"
+          show="checkin"
+        />
+        <action
+          v-if="lockActions.cancelCheckout"
+          icon="lock_open"
+          :label="t('buttons.cancelCheckout')"
+          show="cancel-checkout"
+        />
+        <action
+          v-if="lockActions.versionsAction"
+          icon="history"
+          :label="t('buttons.versions')"
+          show="versions"
+        />
+        <action
+          v-if="lockActions.forceUnlock"
+          icon="lock_open"
+          :label="t('buttons.forceUnlock')"
+          show="force-unlock"
+        />
+        <action
           v-if="headerButtons.upload"
           icon="file_upload"
           id="upload-button"
@@ -302,6 +338,42 @@
             @action="download"
             :counter="fileStore.selectedCount"
           />
+          <action
+            v-if="lockActions.takeForWork"
+            icon="lock_open"
+            :label="t('buttons.takeForWork')"
+            show="checkout"
+          />
+          <action
+            v-if="lockActions.downloadAgain"
+            icon="file_download"
+            :label="t('buttons.downloadAgain')"
+            @action="downloadAgainAction"
+          />
+          <action
+            v-if="lockActions.checkIn"
+            icon="upload_file"
+            :label="t('buttons.checkIn')"
+            show="checkin"
+          />
+          <action
+            v-if="lockActions.cancelCheckout"
+            icon="lock_open"
+            :label="t('buttons.cancelCheckout')"
+            show="cancel-checkout"
+          />
+          <action
+            v-if="lockActions.versionsAction"
+            icon="history"
+            :label="t('buttons.versions')"
+            show="versions"
+          />
+          <action
+            v-if="lockActions.forceUnlock"
+            icon="lock_open"
+            :label="t('buttons.forceUnlock')"
+            show="force-unlock"
+          />
           <action icon="info" :label="t('buttons.info')" show="info" />
         </context-menu>
 
@@ -345,8 +417,18 @@ import { useClipboardStore } from "@/stores/clipboard";
 import { useFileStore } from "@/stores/file";
 import { useLayoutStore } from "@/stores/layout";
 
-import { users, files as api } from "@/api";
-import { enableExec } from "@/utils/constants";
+import { users, files as api, versioning as lockApi } from "@/api";
+import type { LockInfo } from "@/api/versioning";
+import {
+  enableExec,
+  lockingEnabled,
+  allowOwnerCancelCheckout,
+  sharingEnabled,
+  disableRename,
+  disableMove,
+  disableCopy,
+  disableDirectoryDownload,
+} from "@/utils/constants";
 import * as upload from "@/utils/upload";
 import buttons from "@/utils/buttons";
 import css from "@/utils/css";
@@ -474,21 +556,120 @@ const viewIcon = computed(() => {
     : icons[authStore.user.viewMode];
 });
 
+// isArchiveDownload reports whether the current "Download" action would
+// produce a directory/archive download (current folder with nothing
+// selected, multiple items selected, or a single selected directory) rather
+// than a plain single-file download, so restrictions.disableDirectoryDownload
+// only hides the button in that case.
+const isArchiveDownload = computed(() => {
+  if (fileStore.selectedCount === 0) return true;
+  if (fileStore.selectedCount > 1) return true;
+  if (fileStore.req) {
+    return !!fileStore.req.items[fileStore.selected[0]]?.isDir;
+  }
+  return false;
+});
+
 const headerButtons = computed(() => {
   return {
     upload: authStore.user?.perm.create,
-    download: authStore.user?.perm.download,
+    download:
+      authStore.user?.perm.download &&
+      !lockActions.value.hideDownload &&
+      !(disableDirectoryDownload && isArchiveDownload.value),
     shell: authStore.user?.perm.execute && enableExec,
     delete: fileStore.selectedCount > 0 && authStore.user?.perm.delete,
-    rename: fileStore.selectedCount === 1 && authStore.user?.perm.rename,
+    rename:
+      fileStore.selectedCount === 1 &&
+      authStore.user?.perm.rename &&
+      !disableRename,
     share:
       fileStore.selectedCount === 1 &&
       authStore.user?.perm.share &&
-      authStore.user?.perm.download,
-    move: fileStore.selectedCount > 0 && authStore.user?.perm.rename,
-    copy: fileStore.selectedCount > 0 && authStore.user?.perm.create,
+      authStore.user?.perm.download &&
+      sharingEnabled,
+    move:
+      fileStore.selectedCount > 0 &&
+      authStore.user?.perm.rename &&
+      !disableMove,
+    copy:
+      fileStore.selectedCount > 0 &&
+      authStore.user?.perm.create &&
+      !disableCopy,
   };
 });
+
+// --- Locking/versioning (checkout/check-in) ---
+// Lock status for the single selected non-directory file is fetched on
+// demand whenever the selection changes, rather than for every item in the
+// listing (which would need a bulk lock-status endpoint this MVP does not
+// have). Actions below only ever apply to a single selected file.
+const selectedLock = ref<LockInfo | null>(null);
+let lockRequestToken = 0;
+
+const singleSelectedItem = computed(() => {
+  if (fileStore.selectedCount !== 1 || !fileStore.req) return null;
+  const item = fileStore.req.items[fileStore.selected[0]];
+  return item && !item.isDir ? item : null;
+});
+
+watch(
+  singleSelectedItem,
+  async (item) => {
+    selectedLock.value = null;
+    if (!lockingEnabled || !item) return;
+    const token = ++lockRequestToken;
+    try {
+      const lock = await lockApi.getLock(item.path);
+      if (token === lockRequestToken) selectedLock.value = lock;
+    } catch {
+      // Treat a failed lookup as "unknown": no lock-specific actions shown,
+      // the plain download/etc. actions remain available as a fallback.
+    }
+  },
+  { immediate: true }
+);
+
+const isLockOwner = computed(() => !!selectedLock.value?.isCurrentUserOwner);
+const isLockedByOther = computed(
+  () => selectedLock.value?.state === "locked" && !isLockOwner.value
+);
+
+const lockActions = computed(() => {
+  if (!lockingEnabled || !singleSelectedItem.value || !selectedLock.value) {
+    return {
+      takeForWork: false,
+      downloadAgain: false,
+      checkIn: false,
+      cancelCheckout: false,
+      versionsAction: false,
+      forceUnlock: false,
+      hideDownload: false,
+    };
+  }
+  const perm = authStore.user?.perm;
+  const managed = selectedLock.value.state !== "unmanaged";
+  const owner = isLockOwner.value;
+  return {
+    takeForWork: selectedLock.value.state === "available" && !!perm?.download,
+    downloadAgain:
+      selectedLock.value.state === "locked" && owner && !!perm?.download,
+    checkIn: selectedLock.value.state === "locked" && owner && !!perm?.modify,
+    cancelCheckout:
+      selectedLock.value.state === "locked" &&
+      owner &&
+      allowOwnerCancelCheckout,
+    versionsAction: managed,
+    forceUnlock: isLockedByOther.value && !!perm?.admin,
+    hideDownload: managed,
+  };
+});
+
+const downloadAgainAction = () => {
+  if (singleSelectedItem.value) {
+    lockApi.downloadAgain(singleSelectedItem.value.path);
+  }
+};
 
 const isMobile = computed(() => {
   return width.value <= 736;
@@ -570,7 +751,12 @@ const keyEvent = (event: KeyboardEvent) => {
   }
 
   if (event.key === "F2") {
-    if (!authStore.user?.perm.rename || fileStore.selectedCount !== 1) return;
+    if (
+      !authStore.user?.perm.rename ||
+      disableRename ||
+      fileStore.selectedCount !== 1
+    )
+      return;
 
     // Show rename prompt.
     layoutStore.showHover("rename");
@@ -651,6 +837,7 @@ const copyCut = (event: Event | KeyboardEvent): void => {
 
 const paste = async (event: Event) => {
   if ((event.target as HTMLElement).tagName?.toLowerCase() === "input") return;
+  if (clipboardStore.key === "x" ? disableMove : disableCopy) return;
 
   // TODO router location should it be
   const items: any[] = [];

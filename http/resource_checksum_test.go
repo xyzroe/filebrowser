@@ -31,7 +31,7 @@ func TestResourceChecksumRequiresDownloadPermission(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodGet, "/secret.txt?checksum=sha256", http.NoBody)
 		req.Header.Set("X-Auth", signToken(t, perm, key))
 		rec := httptest.NewRecorder()
-		handle(resourceGetHandler, "", st, &settings.Server{}).ServeHTTP(rec, req)
+		handle(resourceGetHandler, "", st, &settings.Server{}, nil).ServeHTTP(rec, req)
 		return rec
 	}
 

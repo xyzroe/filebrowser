@@ -78,7 +78,7 @@ func TestAdminShareGetsHandlerMatchesOwnerScope(t *testing.T) {
 	req.Header.Set("X-Auth", signShareTestToken(t, admin.ID, admin.Username, adminPerm, key))
 
 	rec := httptest.NewRecorder()
-	handle(shareGetsHandler, "", st, &settings.Server{Root: root}).ServeHTTP(rec, req)
+	handle(shareGetsHandler, "", st, &settings.Server{Root: root}, nil).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d: %s", rec.Code, rec.Body.String())
@@ -115,7 +115,7 @@ func TestSharePostHandlerDoesNotLeakSecrets(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, "/file.txt", strings.NewReader(body))
 	req.Header.Set("X-Auth", signed)
 	rec := httptest.NewRecorder()
-	handle(sharePostHandler, "", st, &settings.Server{Root: root}).ServeHTTP(rec, req)
+	handle(sharePostHandler, "", st, &settings.Server{Root: root}, nil).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body=%q", rec.Code, rec.Body.String())

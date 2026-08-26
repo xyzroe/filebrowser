@@ -14,6 +14,7 @@ import (
 	"github.com/filebrowser/filebrowser/v2/files"
 	"github.com/filebrowser/filebrowser/v2/fileutils"
 	"github.com/filebrowser/filebrowser/v2/users"
+	"github.com/filebrowser/filebrowser/v2/versioning"
 	"github.com/mholt/archives"
 )
 
@@ -97,6 +98,9 @@ var rawHandler = withUser(func(w http.ResponseWriter, r *http.Request, d *data) 
 	}
 
 	if !file.IsDir {
+		if status, err := d.authorizeRawDownload(r.URL.Path); err != nil {
+			return status, err
+		}
 		return rawFileHandler(w, r, file)
 	}
 
@@ -111,6 +115,18 @@ func getFiles(d *data, path, commonPath string) ([]archives.FileInfo, error) {
 	info, err := d.user.Fs.Stat(path)
 	if err != nil {
 		return nil, err
+	}
+
+	// MVP limitation (see spec section 10, "batch/archive download"): unlike
+	// the single-file route, an archive is not required to have been checked
+	// out first. It only refuses to include a file that is actively locked by
+	// someone else, so it cannot be used to read around another user's lock.
+	if !info.IsDir() {
+		if locked, lerr := d.isLockedByOther(path); lerr != nil {
+			return nil, lerr
+		} else if locked {
+			return nil, versioning.ErrFileLocked
+		}
 	}
 
 	var archiveFiles []archives.FileInfo
@@ -158,6 +174,12 @@ func getFiles(d *data, path, commonPath string) ([]archives.FileInfo, error) {
 			fPath := filepath.Join(path, name)
 			subFiles, err := getFiles(d, fPath, commonPath)
 			if err != nil {
+				// A file locked by someone else must reject the whole archive
+				// (spec section 10), not just be silently skipped like other
+				// per-file errors (e.g. an unreadable file) are below.
+				if errors.Is(err, versioning.ErrFileLocked) {
+					return nil, err
+				}
 				log.Printf("Failed to get files from %s: %v", fPath, err)
 				continue
 			}
@@ -169,6 +191,10 @@ func getFiles(d *data, path, commonPath string) ([]archives.FileInfo, error) {
 }
 
 func rawDirHandler(w http.ResponseWriter, r *http.Request, d *data, file *files.FileInfo) (int, error) {
+	if d.server.Restrictions.DisableDirectoryDownload {
+		return http.StatusForbidden, fmt.Errorf("downloading a directory or archive is disabled by the administrator")
+	}
+
 	filenames, err := parseQueryFiles(r, file, d.user)
 	if err != nil {
 		return http.StatusInternalServerError, err
@@ -185,6 +211,10 @@ func rawDirHandler(w http.ResponseWriter, r *http.Request, d *data, file *files.
 	for _, fname := range filenames {
 		archiveFiles, err := getFiles(d, fname, commonDir)
 		if err != nil {
+			if errors.Is(err, versioning.ErrFileLocked) {
+				status, _ := versioningErrorStatus(err)
+				return status, err
+			}
 			log.Printf("Failed to get files from %s: %v", fname, err)
 			continue
 		}

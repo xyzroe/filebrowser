@@ -10,6 +10,7 @@ import (
 	"github.com/filebrowser/filebrowser/v2/files"
 	"github.com/filebrowser/filebrowser/v2/settings"
 	"github.com/filebrowser/filebrowser/v2/storage"
+	"github.com/filebrowser/filebrowser/v2/versioning"
 )
 
 type modifyRequest struct {
@@ -25,6 +26,7 @@ func NewHandler(
 	store *storage.Storage,
 	server *settings.Server,
 	assetsFs fs.FS,
+	versioningSvc *versioning.Service,
 ) (http.Handler, error) {
 	server.Clean()
 	server.CaseInsensitiveFs = files.CaseInsensitive(afero.NewOsFs(), server.Root)
@@ -39,7 +41,7 @@ func NewHandler(
 	index, static := getStaticHandlers(store, server, assetsFs)
 
 	monkey := func(fn handleFunc, prefix string) http.Handler {
-		return handle(fn, prefix, store, server)
+		return handle(fn, prefix, store, server, versioningSvc)
 	}
 
 	r.HandleFunc("/health", healthHandler)
@@ -61,6 +63,24 @@ func NewHandler(
 	users.Handle("/{id:[0-9]+}", monkey(userDeleteHandler, "")).Methods("DELETE")
 
 	api.PathPrefix("/resources/recursive").Handler(monkey(resourceGetRecursiveHandler, "/api/resources/recursive")).Methods("GET")
+
+	// Locking/versioning routes must be registered before the generic
+	// PathPrefix("/resources") handlers below: gorilla/mux matches routes in
+	// registration order, and PathPrefix("/resources") would otherwise shadow
+	// these more specific paths (e.g. GET /api/resources/lock would be
+	// swallowed by resourceGetHandler, which would treat "lock" as a literal
+	// file name under the user's scope).
+	if server.Locking.Enabled && server.Versioning.Enabled {
+		api.Handle("/resources/lock", monkey(lockInfoHandler, "")).Methods("GET")
+		api.Handle("/resources/versions", monkey(listVersionsHandler, "")).Methods("GET")
+		api.Handle("/resources/checkout", monkey(checkoutHandler, "")).Methods("POST")
+		api.Handle("/resources/checkout/cancel", monkey(cancelCheckoutHandler, "")).Methods("POST")
+		api.Handle("/resources/versions/checkout", monkey(versionCheckoutHandler, "")).Methods("POST")
+		api.Handle("/resources/versions/download", monkey(versionDownloadHandler, "")).Methods("GET")
+		api.Handle("/resources/checkin", monkey(checkinHandler, "")).Methods("POST")
+		api.Handle("/admin/resources/unlock", monkey(forceUnlockHandler, "")).Methods("POST")
+	}
+
 	api.PathPrefix("/resources").Handler(monkey(resourceGetHandler, "/api/resources")).Methods("GET")
 	api.PathPrefix("/resources").Handler(monkey(resourceDeleteHandler(fileCache), "/api/resources")).Methods("DELETE")
 	api.PathPrefix("/resources").Handler(monkey(resourcePostHandler(fileCache), "/api/resources")).Methods("POST")
@@ -74,10 +94,12 @@ func NewHandler(
 
 	api.PathPrefix("/usage").Handler(monkey(diskUsage, "/api/usage")).Methods("GET")
 
-	api.Handle("/shares", monkey(shareListHandler, "")).Methods("GET")
-	api.PathPrefix("/share").Handler(monkey(shareGetsHandler, "/api/share")).Methods("GET")
-	api.PathPrefix("/share").Handler(monkey(sharePostHandler, "/api/share")).Methods("POST")
-	api.PathPrefix("/share").Handler(monkey(shareDeleteHandler, "/api/share")).Methods("DELETE")
+	if server.Sharing.Enabled {
+		api.Handle("/shares", monkey(shareListHandler, "")).Methods("GET")
+		api.PathPrefix("/share").Handler(monkey(shareGetsHandler, "/api/share")).Methods("GET")
+		api.PathPrefix("/share").Handler(monkey(sharePostHandler, "/api/share")).Methods("POST")
+		api.PathPrefix("/share").Handler(monkey(shareDeleteHandler, "/api/share")).Methods("DELETE")
+	}
 
 	api.Handle("/settings", monkey(settingsGetHandler, "")).Methods("GET")
 	api.Handle("/settings", monkey(settingsPutHandler, "")).Methods("PUT")
@@ -90,8 +112,10 @@ func NewHandler(
 	api.PathPrefix("/subtitle").Handler(monkey(subtitleHandler, "/api/subtitle")).Methods("GET")
 
 	public := api.PathPrefix("/public").Subrouter()
-	public.PathPrefix("/dl").Handler(monkey(publicDlHandler, "/api/public/dl/")).Methods("GET")
-	public.PathPrefix("/share").Handler(monkey(publicShareHandler, "/api/public/share/")).Methods("GET")
+	if server.Sharing.Enabled {
+		public.PathPrefix("/dl").Handler(monkey(publicDlHandler, "/api/public/dl/")).Methods("GET")
+		public.PathPrefix("/share").Handler(monkey(publicShareHandler, "/api/public/share/")).Methods("GET")
+	}
 
 	return stripPrefix(server.BaseURL, r), nil
 }

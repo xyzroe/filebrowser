@@ -49,7 +49,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useFileStore } from "@/stores/file";
 import { useLayoutStore } from "@/stores/layout";
 
-import { enableThumbs } from "@/utils/constants";
+import { enableThumbs, disableMove, disableCopy } from "@/utils/constants";
 import { filesize } from "@/utils";
 import dayjs from "dayjs";
 import { files as api } from "@/api";
@@ -91,7 +91,10 @@ const isSelected = computed(
   () => fileStore.selected.indexOf(props.index) !== -1
 );
 const isDraggable = computed(
-  () => !props.readOnly && authStore.user?.perm.rename
+  () =>
+    !props.readOnly &&
+    authStore.user?.perm.rename &&
+    !(disableMove && disableCopy)
 );
 
 const canDrop = computed(() => {
@@ -163,6 +166,10 @@ const drop = async (event: Event) => {
   event.preventDefault();
 
   if (fileStore.selectedCount === 0) return;
+
+  const isCopy =
+    (event as KeyboardEvent).ctrlKey || (event as KeyboardEvent).metaKey;
+  if (isCopy ? disableCopy : disableMove) return;
 
   let el = event.target as HTMLElement | null;
   for (let i = 0; i < 5; i++) {

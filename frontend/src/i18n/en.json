@@ -1,6 +1,8 @@
 {
   "buttons": {
     "cancel": "Cancel",
+    "cancelCheckout": "Cancel checkout",
+    "checkIn": "Check in new version",
     "clear": "Clear",
     "close": "Close",
     "continue": "Continue",
@@ -11,6 +13,11 @@
     "create": "Create",
     "delete": "Delete",
     "download": "Download",
+    "downloadAgain": "Download again",
+    "downloadVersion": "Download",
+    "forceUnlock": "Force unlock",
+    "takeForWork": "Take for work",
+    "versions": "Versions",
     "file": "File",
     "folder": "Folder",
     "fullScreen": "Toggle full screen",
@@ -127,6 +134,37 @@
     "logout_reasons": {
       "inactivity": "You have been logged out due to inactivity."
     }
+  },
+  "locking": {
+    "available": "Available",
+    "lockedByYou": "Locked by you",
+    "lockedByUser": "Locked by {username}",
+    "lockedByOther": "Locked by another user",
+    "staleWarning": "Lock requires attention",
+    "unmanaged": "Not yet indexed",
+    "checkoutTitle": "Take for work",
+    "checkoutMessage": "Downloading will reserve this file (and all its versions) for you. Other users won't be able to download or replace it until you check in a new version, cancel the checkout, or an administrator force-unlocks it. Closing your browser does not remove the lock.",
+    "checkoutCommentLabel": "Comment (optional)",
+    "checkoutCommentRequired": "Comment (required)",
+    "checkinTitle": "Check in new version",
+    "checkinMessage": "Upload a replacement file. The server keeps the current file name and path; use Rename separately if you want to change it.",
+    "checkinSelectFile": "Select a file",
+    "checkinDifferentNameWarning": "The uploaded file's name ({name}) differs from the server file name. The server file name will be kept.",
+    "checkinCommentLabel": "Comment (optional)",
+    "checkinCommentRequired": "Comment (required)",
+    "checkinInProgress": "Uploading and checking in\u2026",
+    "checkinFailedStillLocked": "Check-in failed. The file remains locked by you; you can try again.",
+    "cancelCheckoutTitle": "Cancel checkout",
+    "cancelCheckoutMessage": "This releases your checkout without creating a new version. A reason is required.",
+    "cancelCheckoutReasonLabel": "Reason",
+    "forceUnlockTitle": "Force unlock",
+    "forceUnlockMessage": "This releases the lock without creating a new version or touching any content. A reason is required and this action is audited.",
+    "forceUnlockReasonLabel": "Reason",
+    "versionsTitle": "Versions",
+    "versionsCurrent": "Current",
+    "versionsNoRestoreHint": "To make an older version current, download it and then check it in as a new version.",
+    "versionsEmpty": "No version history for this file yet.",
+    "versionNumber": "Version {number}"
   },
   "permanent": "Permanent",
   "prompts": {
@@ -300,7 +338,10 @@
     "siteSettings": "Site Settings"
   },
   "success": {
-    "linkCopied": "Link copied!"
+    "linkCopied": "Link copied!",
+    "checkedIn": "New version checked in.",
+    "checkoutCancelled": "Checkout cancelled.",
+    "forceUnlocked": "File force-unlocked."
   },
   "time": {
     "days": "Days",

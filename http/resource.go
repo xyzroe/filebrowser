@@ -103,6 +103,19 @@ func resourceDeleteHandler(fileCache FileCache) handleFunc {
 			return errToStatus(err), err
 		}
 
+		// A locked managed file cannot be deleted by anyone, including an
+		// administrator, until it is explicitly force-unlocked (spec 6.8).
+		// Directory deletes are not checked per-descendant here (MVP
+		// limitation): only the exact requested path is checked.
+		var deletedFileID string
+		if !file.IsDir {
+			var status int
+			deletedFileID, status, err = d.authorizeDeleteMutation(r.URL.Path)
+			if err != nil {
+				return status, err
+			}
+		}
+
 		if err = checkDescendants(d, r.URL.Path, ""); err != nil {
 			return errToStatus(err), err
 		}
@@ -124,6 +137,12 @@ func resourceDeleteHandler(fileCache FileCache) handleFunc {
 
 		if err != nil {
 			return errToStatus(err), err
+		}
+
+		if deletedFileID != "" {
+			if err := d.versioning.HandleDeleted(deletedFileID, d.user.ID); err != nil {
+				log.Printf("WARNING: versioning: could not remove metadata for deleted file %q: %v", r.URL.Path, err)
+			}
 		}
 
 		return http.StatusNoContent, nil
@@ -152,6 +171,7 @@ func resourcePostHandler(fileCache FileCache) handleFunc {
 			ReadHeader: d.server.TypeDetectionByHeader,
 			Checker:    d,
 		})
+		isNewFile := err != nil
 		if err == nil {
 			if r.URL.Query().Get("override") != "true" {
 				return http.StatusConflict, nil
@@ -160,6 +180,17 @@ func resourcePostHandler(fileCache FileCache) handleFunc {
 			// Permission for overwriting the file
 			if !d.user.Perm.Modify {
 				return http.StatusForbidden, nil
+			}
+
+			// A managed (versioned) file cannot be replaced by a generic
+			// upload: replacement must go through "Check in new version" by
+			// the lock owner, so the server can tell create from check-in
+			// rather than inferring authorization from a matching filename
+			// (spec section 11).
+			if managed, merr := d.isManaged(r.URL.Path); merr != nil {
+				return http.StatusInternalServerError, merr
+			} else if managed {
+				return http.StatusConflict, fmt.Errorf("this file is managed by version history; use check-in to replace its content")
 			}
 
 			err = delThumbs(r.Context(), fileCache, file)
@@ -181,6 +212,11 @@ func resourcePostHandler(fileCache FileCache) handleFunc {
 
 		if err != nil {
 			_ = d.user.Fs.RemoveAll(r.URL.Path)
+			return errToStatus(err), err
+		}
+
+		if isNewFile {
+			d.registerNewFile(r.URL.Path)
 		}
 
 		return errToStatus(err), err
@@ -203,6 +239,18 @@ var resourcePutHandler = withUser(func(w http.ResponseWriter, r *http.Request, d
 	}
 	if !exists {
 		return http.StatusNotFound, nil
+	}
+
+	// See resourcePostHandler: a managed file cannot be overwritten by a
+	// generic write either. NOTE: this also blocks the in-browser text editor
+	// "Save" action (which uses PUT) for any managed file, i.e. effectively
+	// every file once versioning.enabled and the file has been indexed. This
+	// is a known MVP tradeoff: check-in only accepts a multipart upload today,
+	// with no in-place-edit equivalent.
+	if managed, merr := d.isManaged(r.URL.Path); merr != nil {
+		return http.StatusInternalServerError, merr
+	} else if managed {
+		return http.StatusConflict, fmt.Errorf("this file is managed by version history; use check-in to replace its content")
 	}
 
 	err = d.RunHook(func() error {
@@ -237,6 +285,26 @@ func resourcePatchHandler(fileCache FileCache) handleFunc {
 			return http.StatusForbidden, nil
 		}
 
+		// Global restrictions (admin-configured, apply to every user
+		// including admins). "move" also uses action=="rename" with a
+		// destination in a different directory (see frontend moveCopy()), so
+		// a same-directory rename and a cross-directory move are
+		// distinguished by comparing parent directories.
+		switch action {
+		case "rename":
+			if path.Dir(src) == path.Dir(dst) {
+				if d.server.Restrictions.DisableRename {
+					return http.StatusForbidden, fmt.Errorf("renaming is disabled by the administrator")
+				}
+			} else if d.server.Restrictions.DisableMove {
+				return http.StatusForbidden, fmt.Errorf("moving is disabled by the administrator")
+			}
+		case "copy":
+			if d.server.Restrictions.DisableCopy {
+				return http.StatusForbidden, fmt.Errorf("copying is disabled by the administrator")
+			}
+		}
+
 		err = checkParent(src, dst)
 		if err != nil {
 			return http.StatusBadRequest, err
@@ -267,9 +335,43 @@ func resourcePatchHandler(fileCache FileCache) handleFunc {
 			return errToStatus(err), err
 		}
 
+		// Lock enforcement (spec 6.7 rename/move, 6.9 copy). "move" also uses
+		// action=="rename" (see frontend moveCopy()), so this single check
+		// covers both. An administrator may bypass the lock for rename/move,
+		// but never for copying a file locked by someone else.
+		var relocateFileID string
+		switch action {
+		case "rename":
+			var status int
+			relocateFileID, status, err = d.authorizeMutation(src)
+			if err != nil {
+				return status, err
+			}
+		case "copy":
+			if status, verr := d.authorizeCopySource(src); verr != nil {
+				return status, verr
+			}
+		}
+
 		err = d.RunHook(func() error {
 			return patchAction(r.Context(), action, src, dst, d, fileCache)
 		}, action, src, dst, d.user)
+		if err != nil {
+			return errToStatus(err), err
+		}
+
+		switch action {
+		case "rename":
+			if relocateFileID != "" {
+				if newCanonical, cerr := d.canonicalPath(dst); cerr == nil {
+					if rerr := d.versioning.Relocate(relocateFileID, newCanonical, d.user.ID); rerr != nil {
+						log.Printf("WARNING: versioning: could not relocate %q -> %q: %v", src, dst, rerr)
+					}
+				}
+			}
+		case "copy":
+			d.registerCopyDestination(dst)
+		}
 
 		return errToStatus(err), err
 	})

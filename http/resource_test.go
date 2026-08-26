@@ -76,7 +76,7 @@ func TestResourceCopyDoesNotDereferenceEscapingSymlink(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodGet, "/srcdir/link.txt", http.NoBody)
 		req.Header.Set("X-Auth", signed)
 		rec := httptest.NewRecorder()
-		handle(rawHandler, "", st, &settings.Server{}).ServeHTTP(rec, req)
+		handle(rawHandler, "", st, &settings.Server{}, nil).ServeHTTP(rec, req)
 		if rec.Code == http.StatusOK {
 			t.Fatalf("VULNERABLE: direct raw read of escaping symlink returned 200, body=%q", rec.Body.String())
 		}
@@ -91,7 +91,7 @@ func TestResourceCopyDoesNotDereferenceEscapingSymlink(t *testing.T) {
 		req.Header.Set("X-Auth", signed)
 
 		rec := httptest.NewRecorder()
-		handle(resourcePatchHandler(diskcache.NewNoOp()), "", st, &settings.Server{}).ServeHTTP(rec, req)
+		handle(resourcePatchHandler(diskcache.NewNoOp()), "", st, &settings.Server{}, nil).ServeHTTP(rec, req)
 		t.Logf("copy status=%d body=%q", rec.Code, rec.Body.String())
 
 		// The escaping symlink's target content must never appear in scope.
@@ -174,7 +174,7 @@ func TestResourcePostRejectsDanglingSymlinkWriteEscape(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, "/evil?override=true", strings.NewReader("http-outside"))
 	req.Header.Set("X-Auth", signed)
 	rec := httptest.NewRecorder()
-	handle(resourcePostHandler(diskcache.NewNoOp()), "", st, &settings.Server{}).ServeHTTP(rec, req)
+	handle(resourcePostHandler(diskcache.NewNoOp()), "", st, &settings.Server{}, nil).ServeHTTP(rec, req)
 
 	if _, statErr := os.Stat(outsideTarget); statErr == nil {
 		data, _ := os.ReadFile(outsideTarget)
@@ -216,7 +216,7 @@ func TestResourcePostCleanupDoesNotDeleteThroughSymlink(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, "/link/victim.txt", strings.NewReader("x"))
 	req.Header.Set("X-Auth", signed)
 	rec := httptest.NewRecorder()
-	handle(resourcePostHandler(diskcache.NewNoOp()), "", st, &settings.Server{}).ServeHTTP(rec, req)
+	handle(resourcePostHandler(diskcache.NewNoOp()), "", st, &settings.Server{}, nil).ServeHTTP(rec, req)
 
 	if _, statErr := os.Stat(victim); statErr != nil {
 		t.Fatalf("VULNERABLE: out-of-scope victim.txt deleted by cleanup RemoveAll (status=%d): %v", rec.Code, statErr)
@@ -245,7 +245,7 @@ func TestResourcePostRunsUploadHooksForDirectories(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, "/created/", http.NoBody)
 	req.Header.Set("X-Auth", signToken(t, perm, key))
 	rec := httptest.NewRecorder()
-	handle(resourcePostHandler(diskcache.NewNoOp()), "", st, &settings.Server{EnableExec: true}).ServeHTTP(rec, req)
+	handle(resourcePostHandler(diskcache.NewNoOp()), "", st, &settings.Server{EnableExec: true}, nil).ServeHTTP(rec, req)
 
 	// A missing after_upload command makes the request fail only if the hook ran.
 	// It avoids a platform-specific helper executable while still exercising the

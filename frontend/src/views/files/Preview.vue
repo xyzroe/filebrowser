@@ -19,7 +19,7 @@
       <template #actions>
         <action
           :disabled="layoutStore.loading"
-          v-if="authStore.user?.perm.rename"
+          v-if="authStore.user?.perm.rename && !disableRename"
           icon="mode_edit"
           :label="$t('buttons.rename')"
           show="rename"
@@ -41,10 +41,52 @@
         />
         <action
           :disabled="layoutStore.loading"
-          v-if="authStore.user?.perm.download"
+          v-if="authStore.user?.perm.download && !lockActions.hideDownload"
           icon="file_download"
           :label="$t('buttons.download')"
           @action="download"
+        />
+        <action
+          :disabled="layoutStore.loading"
+          v-if="lockActions.takeForWork"
+          icon="lock_open"
+          :label="$t('buttons.takeForWork')"
+          show="checkout"
+        />
+        <action
+          :disabled="layoutStore.loading"
+          v-if="lockActions.downloadAgain"
+          icon="file_download"
+          :label="$t('buttons.downloadAgain')"
+          @action="downloadAgainAction"
+        />
+        <action
+          :disabled="layoutStore.loading"
+          v-if="lockActions.checkIn"
+          icon="upload_file"
+          :label="$t('buttons.checkIn')"
+          show="checkin"
+        />
+        <action
+          :disabled="layoutStore.loading"
+          v-if="lockActions.cancelCheckout"
+          icon="lock_open"
+          :label="$t('buttons.cancelCheckout')"
+          show="cancel-checkout"
+        />
+        <action
+          :disabled="layoutStore.loading"
+          v-if="lockActions.versionsAction"
+          icon="history"
+          :label="$t('buttons.versions')"
+          show="versions"
+        />
+        <action
+          :disabled="layoutStore.loading"
+          v-if="lockActions.forceUnlock"
+          icon="lock_open"
+          :label="$t('buttons.forceUnlock')"
+          show="force-unlock"
         />
         <action
           :disabled="layoutStore.loading"
@@ -131,17 +173,54 @@
             {{ $t("files.noPreview") }}
           </div>
           <div>
-            <a target="_blank" :href="downloadUrl" class="button button--flat">
+            <a
+              v-if="!lockActions.hideDownload"
+              target="_blank"
+              :href="downloadUrl"
+              class="button button--flat"
+            >
               <div>
                 <i class="material-icons">file_download</i
                 >{{ $t("buttons.download") }}
               </div>
             </a>
+            <button
+              v-if="lockActions.takeForWork"
+              class="button button--flat"
+              @click="layoutStore.showHover('checkout')"
+            >
+              <i class="material-icons">lock_open</i>
+              {{ $t("buttons.takeForWork") }}
+            </button>
+            <button
+              v-if="lockActions.downloadAgain"
+              class="button button--flat"
+              @click="downloadAgainAction"
+            >
+              <i class="material-icons">file_download</i>
+              {{ $t("buttons.downloadAgain") }}
+            </button>
+            <button
+              v-if="lockActions.checkIn"
+              class="button button--flat"
+              @click="layoutStore.showHover('checkin')"
+            >
+              <i class="material-icons">upload_file</i>
+              {{ $t("buttons.checkIn") }}
+            </button>
+            <button
+              v-if="lockActions.versionsAction"
+              class="button button--flat"
+              @click="layoutStore.showHover('versions')"
+            >
+              <i class="material-icons">history</i>
+              {{ $t("buttons.versions") }}
+            </button>
             <a
               target="_blank"
               :href="previewUrl"
               class="button button--flat"
-              v-if="!fileStore.req?.isDir"
+              v-if="!fileStore.req?.isDir && !lockActions.hideDownload"
             >
               <div>
                 <i class="material-icons">open_in_new</i
@@ -185,8 +264,15 @@ import { useFileStore } from "@/stores/file";
 import { useLayoutStore } from "@/stores/layout";
 
 import { files as api } from "@/api";
+import { versioning as lockApi } from "@/api";
+import type { LockInfo } from "@/api/versioning";
 import { createURL } from "@/api/utils";
-import { resizePreview } from "@/utils/constants";
+import {
+  resizePreview,
+  lockingEnabled,
+  allowOwnerCancelCheckout,
+  disableRename,
+} from "@/utils/constants";
 import url from "@/utils/url";
 import { throttle } from "lodash-es";
 import HeaderBar from "@/components/header/HeaderBar.vue";
@@ -317,6 +403,68 @@ const isCsv = computed(
 );
 
 const isResizeEnabled = computed(() => resizePreview);
+
+// --- Locking/versioning (checkout/check-in) ---
+// Mirrors the same logic in FileListing.vue's single-selection case, since a
+// preview is always exactly one file.
+const selectedLock = ref<LockInfo | null>(null);
+let lockRequestToken = 0;
+
+watch(
+  () => fileStore.req?.path,
+  async (path) => {
+    selectedLock.value = null;
+    if (!lockingEnabled || !path || fileStore.req?.isDir) return;
+    const token = ++lockRequestToken;
+    try {
+      const lock = await lockApi.getLock(path);
+      if (token === lockRequestToken) selectedLock.value = lock;
+    } catch {
+      // Treat a failed lookup as "unknown": no lock-specific actions shown,
+      // the plain download action remains available as a fallback.
+    }
+  },
+  { immediate: true }
+);
+
+const isLockOwner = computed(() => !!selectedLock.value?.isCurrentUserOwner);
+const isLockedByOther = computed(
+  () => selectedLock.value?.state === "locked" && !isLockOwner.value
+);
+
+const lockActions = computed(() => {
+  if (!lockingEnabled || !selectedLock.value) {
+    return {
+      takeForWork: false,
+      downloadAgain: false,
+      checkIn: false,
+      cancelCheckout: false,
+      versionsAction: false,
+      forceUnlock: false,
+      hideDownload: false,
+    };
+  }
+  const perm = authStore.user?.perm;
+  const managed = selectedLock.value.state !== "unmanaged";
+  const owner = isLockOwner.value;
+  return {
+    takeForWork: selectedLock.value.state === "available" && !!perm?.download,
+    downloadAgain:
+      selectedLock.value.state === "locked" && owner && !!perm?.download,
+    checkIn: selectedLock.value.state === "locked" && owner && !!perm?.modify,
+    cancelCheckout:
+      selectedLock.value.state === "locked" &&
+      owner &&
+      allowOwnerCancelCheckout,
+    versionsAction: managed,
+    forceUnlock: isLockedByOther.value && !!perm?.admin,
+    hideDownload: managed,
+  };
+});
+
+const downloadAgainAction = () => {
+  if (fileStore.req) lockApi.downloadAgain(fileStore.req.path);
+};
 
 const subtitles = computed(() => {
   if (fileStore.req?.subtitles) {

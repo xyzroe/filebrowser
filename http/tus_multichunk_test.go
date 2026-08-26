@@ -23,9 +23,9 @@ func newTusTestServer(t *testing.T, st *storage.Storage, cache UploadCache) *htt
 	t.Helper()
 
 	server := &settings.Server{}
-	post := handle(tusPostHandler(cache), "/api/tus", st, server)
-	head := handle(tusHeadHandler(cache), "/api/tus", st, server)
-	patch := handle(tusPatchHandler(cache), "/api/tus", st, server)
+	post := handle(tusPostHandler(cache), "/api/tus", st, server, nil)
+	head := handle(tusHeadHandler(cache), "/api/tus", st, server, nil)
+	patch := handle(tusPatchHandler(cache), "/api/tus", st, server, nil)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/tus/", func(w http.ResponseWriter, r *http.Request) {

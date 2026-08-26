@@ -113,6 +113,40 @@ func addServerFlags(flags *pflag.FlagSet) {
 	flags.Bool("disableTypeDetectionByHeader", false, "disables type detection by reading file headers")
 	flags.Bool("disableImageResolutionCalc", false, "disables image resolution calculation by reading image files")
 	flags.Bool("followExternalSymlinks", false, "follow symlinks whose target is outside the user scope (unsafe)")
+	addLockingVersioningFlags(flags)
+	addRestrictionsFlags(flags)
+}
+
+// addLockingVersioningFlags adds the flags for the checkout/check-in file
+// locking and version history feature (see
+// filebrowser_fork_locking_versioning_spec.md). It is shared between the root
+// command and the config init/set commands, like addServerFlags.
+func addLockingVersioningFlags(flags *pflag.FlagSet) {
+	flags.Bool("locking.enabled", false, "enable checkout/check-in file locking")
+	flags.Bool("locking.allowOwnerCancelCheckout", true, "allow the lock owner to cancel a checkout without checking in a new version")
+	flags.Int("locking.staleAfterDays", settings.DefaultLockingStaleAfterDays, "days of owner inactivity after which a lock is flagged stale (informational only; it is never auto-unlocked)")
+	flags.Bool("locking.showOwnerToUsers", true, "show the lock owner's username to other users who can browse the file")
+	flags.Bool("locking.requireCheckoutComment", false, "require a comment when checking out a file")
+	flags.Bool("locking.blockAdminDownloadWhileLocked", true, "require an administrator to force-unlock before downloading a locked file")
+
+	flags.Bool("versioning.enabled", false, "enable ordinary file version history")
+	flags.String("versioning.storagePath", "", "directory for immutable version objects, outside any browsable scope (required if versioning.enabled)")
+	flags.Int("versioning.maxVersionsPerFile", 0, "maximum retained versions per file, 0 means unlimited")
+	flags.Int("versioning.maxAgeDays", 0, "maximum age in days of a retained version, 0 means unlimited")
+	flags.Int("versioning.deletedFileRetentionDays", settings.DefaultVersioningDeletedFileRetentionDays, "days a deleted file's versions are retained before purge (purge is not yet implemented)")
+	flags.Bool("versioning.requireCheckinComment", false, "require a comment when checking in a new version")
+
+	flags.Bool("sharing.enabled", false, "allow creating public share links (disabled by default: a publicly shared managed/versioned file can never satisfy the checkout policy)")
+}
+
+// addRestrictionsFlags adds flags letting an administrator globally disable
+// specific operations for every user (including admins), regardless of their
+// individual permissions.
+func addRestrictionsFlags(flags *pflag.FlagSet) {
+	flags.Bool("restrictions.disableRename", false, "globally disable renaming files and directories, for every user")
+	flags.Bool("restrictions.disableMove", false, "globally disable moving files and directories, for every user")
+	flags.Bool("restrictions.disableCopy", false, "globally disable copying files and directories, for every user")
+	flags.Bool("restrictions.disableDirectoryDownload", false, "globally disable downloading a whole directory (or multiple selected items) as an archive, for every user")
 }
 
 var rootCmd = &cobra.Command{
@@ -203,6 +237,11 @@ user created with the credentials from options "username" and "password".`,
 		}
 		server.Root = root
 
+		versioningSvc, err := setupVersioning(v, server, st.Storage.Versioning)
+		if err != nil {
+			return err
+		}
+
 		adr := server.Address + ":" + server.Port
 
 		var listener net.Listener
@@ -242,12 +281,13 @@ user created with the credentials from options "username" and "password".`,
 			panic(err)
 		}
 
-		handler, err := fbhttp.NewHandler(imageService, fileCache, uploadCache, st.Storage, server, assetsFs)
+		handler, err := fbhttp.NewHandler(imageService, fileCache, uploadCache, st.Storage, server, assetsFs, versioningSvc)
 		if err != nil {
 			return err
 		}
 
 		defer listener.Close()
+		defer versioningSvc.Close()
 
 		log.Println("Listening on", listener.Addr().String())
 		srv := &http.Server{
@@ -262,6 +302,10 @@ user created with the credentials from options "username" and "password".`,
 
 			log.Println("Stopped serving new connections.")
 		}()
+
+		if server.Versioning.Enabled {
+			startBackgroundIndexer(server, versioningSvc)
+		}
 
 		sigc := make(chan os.Signal, 1)
 		signal.Notify(sigc,
@@ -397,6 +441,36 @@ func getServerSettings(v *viper.Viper, st *storage.Storage) (*settings.Server, e
 			log.Println("WARNING: delete all files File Browser serves, including other users' files.")
 			log.Println("WARNING: Enable createUserDir, or set a default scope other than the root.")
 		}
+	}
+
+	// Locking/versioning/sharing config is intentionally always taken from
+	// flags/env/config-file (with their built-in defaults) rather than gated
+	// by v.IsSet like the legacy fields above: these are new fields with no
+	// pre-existing persisted value to preserve across upgrades.
+	server.Locking = settings.Locking{
+		Enabled:                       v.GetBool("locking.enabled"),
+		AllowOwnerCancelCheckout:      v.GetBool("locking.allowOwnerCancelCheckout"),
+		StaleAfterDays:                v.GetInt("locking.staleAfterDays"),
+		ShowOwnerToUsers:              v.GetBool("locking.showOwnerToUsers"),
+		RequireCheckoutComment:        v.GetBool("locking.requireCheckoutComment"),
+		BlockAdminDownloadWhileLocked: v.GetBool("locking.blockAdminDownloadWhileLocked"),
+	}
+	server.Versioning = settings.Versioning{
+		Enabled:                  v.GetBool("versioning.enabled"),
+		StoragePath:              v.GetString("versioning.storagePath"),
+		MaxVersionsPerFile:       v.GetInt("versioning.maxVersionsPerFile"),
+		MaxAgeDays:               v.GetInt("versioning.maxAgeDays"),
+		DeletedFileRetentionDays: v.GetInt("versioning.deletedFileRetentionDays"),
+		RequireCheckinComment:    v.GetBool("versioning.requireCheckinComment"),
+	}
+	server.Sharing = settings.Sharing{
+		Enabled: v.GetBool("sharing.enabled"),
+	}
+	server.Restrictions = settings.Restrictions{
+		DisableRename:            v.GetBool("restrictions.disableRename"),
+		DisableMove:              v.GetBool("restrictions.disableMove"),
+		DisableCopy:              v.GetBool("restrictions.disableCopy"),
+		DisableDirectoryDownload: v.GetBool("restrictions.disableDirectoryDownload"),
 	}
 
 	return server, nil

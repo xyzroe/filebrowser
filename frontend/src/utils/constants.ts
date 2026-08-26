@@ -20,6 +20,19 @@ const tusSettings = window.FileBrowser.TusSettings;
 const origin = window.location.origin;
 const tusEndpoint = `/api/tus`;
 const hideLoginButton = window.FileBrowser.HideLoginButton;
+const lockingEnabled: boolean = window.FileBrowser.LockingEnabled;
+const allowOwnerCancelCheckout: boolean =
+  window.FileBrowser.AllowOwnerCancelCheckout;
+const requireCheckoutComment: boolean =
+  window.FileBrowser.RequireCheckoutComment;
+const requireCheckinComment: boolean =
+  window.FileBrowser.RequireCheckinComment;
+const sharingEnabled: boolean = window.FileBrowser.SharingEnabled;
+const disableRename: boolean = window.FileBrowser.DisableRename;
+const disableMove: boolean = window.FileBrowser.DisableMove;
+const disableCopy: boolean = window.FileBrowser.DisableCopy;
+const disableDirectoryDownload: boolean =
+  window.FileBrowser.DisableDirectoryDownload;
 
 export {
   name,
@@ -43,4 +56,13 @@ export {
   origin,
   tusEndpoint,
   hideLoginButton,
+  lockingEnabled,
+  allowOwnerCancelCheckout,
+  requireCheckoutComment,
+  requireCheckinComment,
+  sharingEnabled,
+  disableRename,
+  disableMove,
+  disableCopy,
+  disableDirectoryDownload,
 };

@@ -30,26 +30,35 @@ func handleWithStaticData(w http.ResponseWriter, _ *http.Request, d *data, fSys 
 	}
 
 	data := map[string]interface{}{
-		"Name":                  d.settings.Branding.Name,
-		"DisableExternal":       d.settings.Branding.DisableExternal,
-		"DisableUsedPercentage": d.settings.Branding.DisableUsedPercentage,
-		"Color":                 d.settings.Branding.Color,
-		"BaseURL":               d.server.BaseURL,
-		"Version":               version.Version,
-		"StaticURL":             path.Join(d.server.BaseURL, "/static"),
-		"Signup":                d.settings.Signup,
-		"NoAuth":                d.settings.AuthMethod == auth.MethodNoAuth,
-		"AuthMethod":            d.settings.AuthMethod,
-		"LogoutPage":            d.settings.LogoutPage,
-		"LoginPage":             auther.LoginPage(),
-		"CSS":                   false,
-		"ReCaptcha":             false,
-		"Theme":                 d.settings.Branding.Theme,
-		"EnableThumbs":          d.server.EnableThumbnails,
-		"ResizePreview":         d.server.ResizePreview,
-		"EnableExec":            d.server.EnableExec,
-		"TusSettings":           d.settings.Tus,
-		"HideLoginButton":       d.settings.HideLoginButton,
+		"Name":                     d.settings.Branding.Name,
+		"DisableExternal":          d.settings.Branding.DisableExternal,
+		"DisableUsedPercentage":    d.settings.Branding.DisableUsedPercentage,
+		"Color":                    d.settings.Branding.Color,
+		"BaseURL":                  d.server.BaseURL,
+		"Version":                  version.Version,
+		"StaticURL":                path.Join(d.server.BaseURL, "/static"),
+		"Signup":                   d.settings.Signup,
+		"NoAuth":                   d.settings.AuthMethod == auth.MethodNoAuth,
+		"AuthMethod":               d.settings.AuthMethod,
+		"LogoutPage":               d.settings.LogoutPage,
+		"LoginPage":                auther.LoginPage(),
+		"CSS":                      false,
+		"ReCaptcha":                false,
+		"Theme":                    d.settings.Branding.Theme,
+		"EnableThumbs":             d.server.EnableThumbnails,
+		"ResizePreview":            d.server.ResizePreview,
+		"EnableExec":               d.server.EnableExec,
+		"TusSettings":              d.settings.Tus,
+		"HideLoginButton":          d.settings.HideLoginButton,
+		"LockingEnabled":           d.server.Locking.Enabled && d.server.Versioning.Enabled,
+		"AllowOwnerCancelCheckout": d.server.Locking.AllowOwnerCancelCheckout,
+		"RequireCheckoutComment":   d.server.Locking.RequireCheckoutComment,
+		"RequireCheckinComment":    d.server.Versioning.RequireCheckinComment,
+		"SharingEnabled":           d.server.Sharing.Enabled,
+		"DisableRename":            d.server.Restrictions.DisableRename,
+		"DisableMove":              d.server.Restrictions.DisableMove,
+		"DisableCopy":              d.server.Restrictions.DisableCopy,
+		"DisableDirectoryDownload": d.server.Restrictions.DisableDirectoryDownload,
 	}
 
 	if d.settings.Branding.Files != "" {
@@ -112,7 +121,7 @@ func getStaticHandlers(store *storage.Storage, server *settings.Server, assetsFs
 		w.Header().Set("x-xss-protection", "1; mode=block")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		return handleWithStaticData(w, r, d, assetsFs, "public/index.html", "text/html; charset=utf-8")
-	}, "", store, server)
+	}, "", store, server, nil)
 
 	static = handle(func(w http.ResponseWriter, r *http.Request, d *data) (int, error) {
 		if r.Method != http.MethodGet {
@@ -177,7 +186,7 @@ func getStaticHandlers(store *storage.Storage, server *settings.Server, assetsFs
 		}
 
 		return 0, nil
-	}, "/static/", store, server)
+	}, "/static/", store, server, nil)
 
 	return index, static
 }

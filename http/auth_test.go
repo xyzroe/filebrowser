@@ -50,7 +50,7 @@ func TestSignupRejectsCollidingNormalizedScope(t *testing.T) {
 		body := `{"username":"` + username + `","password":"CollidePw12345!"}`
 		req, _ := http.NewRequest(http.MethodPost, "/signup", strings.NewReader(body))
 		rec := httptest.NewRecorder()
-		handle(signupHandler, "", st, server).ServeHTTP(rec, req)
+		handle(signupHandler, "", st, server, nil).ServeHTTP(rec, req)
 		return rec
 	}
 
@@ -121,7 +121,7 @@ func TestExpiredTokenNeedsProxyAssertion(t *testing.T) {
 			req.Header.Set(proxyHeader, proxyUser)
 		}
 		rec := httptest.NewRecorder()
-		handle(protected, "", st, &settings.Server{}).ServeHTTP(rec, req)
+		handle(protected, "", st, &settings.Server{}, nil).ServeHTTP(rec, req)
 		return rec
 	}
 
