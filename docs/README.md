@@ -18,6 +18,7 @@ File Browser provides a file managing interface within a specified directory and
 - [Command Execution](command-execution.md)
 - [Deployment](deployment.md)
 - [Troubleshooting](troubleshooting.md)
+- [File Locking, Version History, and Access Restrictions](access-restrictions.md)
 - [Command Line Usage](cli/filebrowser.md)
 
 Project-level documents live in the repository root: [README](../README.md), [Building File Browser](../CONTRIBUTING.md), [Security Policy](../SECURITY.md), [Code of Conduct](../CODE-OF-CONDUCT.md), [Changelog](../CHANGELOG.md) and [License](../LICENSE).

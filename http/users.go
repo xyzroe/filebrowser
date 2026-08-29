@@ -235,9 +235,15 @@ var userPutHandler = withSelfOrAdmin(func(w http.ResponseWriter, r *http.Request
 			req.Data.Password = suser.Password
 		}
 
+		// A full replace may change the password or permissions; there is no
+		// cheap way to tell, so tokens issued for this user are invalidated
+		// unconditionally.
+		defer d.store.Users.InvalidateTokens(req.Data.ID)
+
 		req.Which = []string{}
 	}
 
+	invalidateTokens := false
 	for k, v := range req.Which {
 		v = cases.Title(language.English, cases.NoLower).String(v)
 		req.Which[k] = v
@@ -253,6 +259,10 @@ var userPutHandler = withSelfOrAdmin(func(w http.ResponseWriter, r *http.Request
 			}
 		}
 
+		if v == "Password" || v == "Perm" {
+			invalidateTokens = true
+		}
+
 		for _, f := range NonModifiableFieldsForNonAdmin {
 			if !d.user.Perm.Admin && v == f {
 				return http.StatusForbidden, nil
@@ -263,6 +273,9 @@ var userPutHandler = withSelfOrAdmin(func(w http.ResponseWriter, r *http.Request
 	err = d.store.Users.Update(req.Data, req.Which...)
 	if err != nil {
 		return http.StatusInternalServerError, err
+	}
+	if invalidateTokens {
+		d.store.Users.InvalidateTokens(req.Data.ID)
 	}
 
 	return http.StatusOK, nil

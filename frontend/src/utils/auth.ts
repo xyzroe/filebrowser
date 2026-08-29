@@ -119,6 +119,20 @@ export function logout(reason?: string) {
   document.cookie = "auth=; Max-Age=0; Path=/; SameSite=Strict;";
 
   const authStore = useAuthStore();
+  const jwt = authStore.jwt;
+
+  // Best-effort: ask the server to invalidate every token issued for this
+  // user so a copy left in storage/logs stops working immediately. Fired
+  // without awaiting so logout isn't blocked on the network round trip;
+  // keepalive lets it complete even if navigation happens right after.
+  if (jwt) {
+    fetch(`${baseURL}/api/logout`, {
+      method: "POST",
+      headers: { "X-Auth": jwt },
+      keepalive: true,
+    }).catch(() => {});
+  }
+
   authStore.clearUser();
 
   localStorage.setItem("jwt", "");

@@ -106,7 +106,7 @@ func addServerFlags(flags *pflag.FlagSet) {
 	flags.StringP("root", "r", ".", "root to prepend to relative paths")
 	flags.String("socket", "", "socket to listen to (cannot be used with address, port, cert nor key flags)")
 	flags.StringP("baseURL", "b", "", "base url")
-	flags.String("tokenExpirationTime", "2h", "user session timeout")
+	flags.String("tokenExpirationTime", "30m", "user session timeout")
 	flags.Bool("disableThumbnails", false, "disable image thumbnails")
 	flags.Bool("disablePreviewResize", false, "disable resize of image previews")
 	flags.Bool("disableExec", true, "disables Command Runner feature")
@@ -148,6 +148,7 @@ func addRestrictionsFlags(flags *pflag.FlagSet) {
 	flags.Bool("restrictions.disableMultipleSelection", false, "disable selecting multiple files/directories at once, for non-admin users")
 	flags.Bool("restrictions.disableNewFile", false, "disable creating new empty files from the browser UI (uploading is still allowed), for non-admin users")
 	flags.Bool("restrictions.disableEditor", false, "disable editing text files with the built-in editor, for non-admin users")
+	flags.Bool("restrictions.disableHelp", false, "hide the help button/panel, for non-admin users")
 }
 
 var rootCmd = &cobra.Command{
@@ -473,6 +474,7 @@ func getServerSettings(v *viper.Viper, st *storage.Storage) (*settings.Server, e
 		DisableMultipleSelection: v.GetBool("restrictions.disableMultipleSelection"),
 		DisableNewFile:           v.GetBool("restrictions.disableNewFile"),
 		DisableEditor:            v.GetBool("restrictions.disableEditor"),
+		DisableHelp:              v.GetBool("restrictions.disableHelp"),
 	}
 
 	return server, nil

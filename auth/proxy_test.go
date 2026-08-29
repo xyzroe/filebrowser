@@ -48,8 +48,10 @@ func (m *mockUserStore) SaveProvisioned(user *users.User, derivedScope bool) err
 	return m.Save(user)
 }
 
-func (m *mockUserStore) Delete(_ interface{}) error { return nil }
-func (m *mockUserStore) LastUpdate(_ uint) int64    { return 0 }
+func (m *mockUserStore) Delete(_ interface{}) error    { return nil }
+func (m *mockUserStore) LastUpdate(_ uint) int64       { return 0 }
+func (m *mockUserStore) InvalidateTokens(_ uint)       {}
+func (m *mockUserStore) InvalidatedSince(_ uint) int64 { return 0 }
 
 func TestProxyAuthCreateUserRestrictsDefaults(t *testing.T) {
 	t.Parallel()

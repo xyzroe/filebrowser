@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	DefaultTokenExpirationTime = time.Hour * 2
+	DefaultTokenExpirationTime = time.Minute * 30
 
 	maxAuthBodySize = 1 << 20 // 1 MiB
 )
@@ -41,6 +41,11 @@ type userInfo struct {
 
 type authToken struct {
 	User userInfo `json:"user"`
+	// IssuedAtNano is a nanosecond-precision mint time, used only to compare
+	// against Storage.InvalidatedSince. The standard "iat" claim has second
+	// precision, which is too coarse: a token invalidated and a replacement
+	// re-issued within the same second must not collide.
+	IssuedAtNano int64 `json:"iat_ns,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -123,6 +128,18 @@ func withUser(fn handleFunc) handleFunc {
 		p := jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), jwt.WithExpirationRequired())
 		token, err := request.ParseFromRequest(r, &extractor{}, keyFunc, request.WithClaims(&tk), request.WithParser(p))
 		if (err != nil || !token.Valid) && !renewableErr(err, r, d, &tk) {
+			return http.StatusUnauthorized, nil
+		}
+
+		// A token issued before the user's most recent security-relevant
+		// change (password change, permission change, explicit logout) is
+		// rejected outright: unlike the renew-hint below, this cannot be
+		// worked around by presenting the same token to /api/renew.
+		// Nanosecond precision (rather than the standard second-precision
+		// "iat") avoids rejecting a legitimate replacement token minted in
+		// the same second as the invalidation event (e.g. immediately
+		// logging back in right after a password change).
+		if tk.IssuedAtNano != 0 && tk.IssuedAtNano <= d.store.Users.InvalidatedSince(tk.User.ID) {
 			return http.StatusUnauthorized, nil
 		}
 
@@ -252,7 +269,19 @@ func renewHandler(tokenExpireTime time.Duration) handleFunc {
 	})
 }
 
+// logoutHandler invalidates every JWT issued for the current user before now,
+// including the one presented on this request, so that a copy of the token
+// left in browser storage, a proxy log, or leaked elsewhere stops working
+// immediately instead of remaining valid until its natural expiration. Since
+// there is no per-device session tracking, this signs the user out of every
+// device, not just the caller's.
+var logoutHandler = withUser(func(_ http.ResponseWriter, _ *http.Request, d *data) (int, error) {
+	d.store.Users.InvalidateTokens(d.user.ID)
+	return http.StatusOK, nil
+})
+
 func printToken(w http.ResponseWriter, _ *http.Request, d *data, user *users.User, tokenExpirationTime time.Duration) (int, error) {
+	now := time.Now()
 	claims := &authToken{
 		User: userInfo{
 			ID:                    user.ID,
@@ -268,9 +297,10 @@ func printToken(w http.ResponseWriter, _ *http.Request, d *data, user *users.Use
 			Username:              user.Username,
 			AceEditorTheme:        user.AceEditorTheme,
 		},
+		IssuedAtNano: now.UnixNano(),
 		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenExpirationTime)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(tokenExpirationTime)),
 			Issuer:    "File Browser",
 		},
 	}

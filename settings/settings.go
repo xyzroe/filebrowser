@@ -117,6 +117,7 @@ type Restrictions struct {
 	DisableMultipleSelection bool `json:"disableMultipleSelection"`
 	DisableNewFile           bool `json:"disableNewFile"`
 	DisableEditor            bool `json:"disableEditor"`
+	DisableHelp              bool `json:"disableHelp"`
 }
 
 const (

@@ -103,12 +103,12 @@
           v-else
           rel="noopener noreferrer"
           target="_blank"
-          href="https://github.com/filebrowser/filebrowser"
+          href="https://github.com/xyzroe/filebrowser"
           >File Browser</a
         >
         <span> {{ " " }} {{ version }}</span>
       </span>
-      <span>
+      <span v-if="canShowHelp">
         <a @click="help">{{ $t("sidebar.help") }}</a>
       </span>
     </p>
@@ -130,6 +130,7 @@ import {
   disableExternal,
   disableUsedPercentage,
   disableNewFile,
+  disableHelp,
   noAuth,
   logoutPage,
   loginPage,
@@ -165,6 +166,9 @@ export default {
     canLogout: () => !noAuth && (loginPage || logoutPage !== "/login"),
     canCreateNewFile() {
       return !disableNewFile || this.user?.perm.admin;
+    },
+    canShowHelp() {
+      return !disableHelp || this.user?.perm.admin;
     },
   },
   methods: {

@@ -1,0 +1,52 @@
+name: Auto Version Bump
+
+# Runs commit-and-tag-version on every push to master: it inspects commits
+# since the last "v*" tag, and if any are release-worthy (feat/fix/etc, see
+# .versionrc), bumps CHANGELOG.md and creates+pushes a new "v*" tag. That tag
+# push is what triggers the "release" job in ci.yaml (Docker images + GitHub
+# release via GoReleaser).
+#
+# Note: pushing the tag with the default GITHUB_TOKEN would NOT trigger the
+# tag-triggered workflow (GitHub Actions intentionally does not chain
+# workflows off GITHUB_TOKEN-authored pushes, to avoid infinite loops). A
+# personal access token with "repo" scope must be stored as the GH_PAT
+# repository secret for the release automation to actually fire.
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  bump:
+    name: Bump version and tag
+    if: "!contains(github.event.head_commit.message, 'chore(release):')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24.x"
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Check for release-worthy commits
+        id: check
+        run: |
+          if npx --yes commit-and-tag-version --dry-run --skip 2>&1 | grep -q "^tagging release"; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Bump version and tag
+        if: steps.check.outputs.release == 'true'
+        run: npx --yes commit-and-tag-version -s
+      - name: Push changes and tags
+        if: steps.check.outputs.release == 'true'
+        run: git push --follow-tags origin master

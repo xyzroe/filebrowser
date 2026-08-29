@@ -60,6 +60,7 @@ func handleWithStaticData(w http.ResponseWriter, _ *http.Request, d *data, fSys 
 		"DisableMultipleSelection": d.server.Restrictions.DisableMultipleSelection,
 		"DisableNewFile":           d.server.Restrictions.DisableNewFile,
 		"DisableEditor":            d.server.Restrictions.DisableEditor,
+		"DisableHelp":              d.server.Restrictions.DisableHelp,
 	}
 
 	if d.settings.Branding.Files != "" {

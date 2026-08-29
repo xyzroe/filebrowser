@@ -45,7 +45,7 @@ import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
 import FileListing from "@/views/files/FileListing.vue";
 import { StatusError } from "@/api/utils";
-import { name, disableEditor } from "../utils/constants";
+import { name, disableEditor, disableHelp } from "../utils/constants";
 
 const Editor = defineAsyncComponent(() => import("@/views/files/Editor.vue"));
 const Preview = defineAsyncComponent(() => import("@/views/files/Preview.vue"));
@@ -184,6 +184,7 @@ const fetchData = async () => {
 };
 const keyEvent = (event: KeyboardEvent) => {
   if (event.key === "F1") {
+    if (disableHelp && !authStore.user?.perm.admin) return;
     event.preventDefault();
     layoutStore.showHover("help");
   }

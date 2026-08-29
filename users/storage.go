@@ -29,13 +29,24 @@ type Store interface {
 	SaveProvisioned(user *User, derivedScope bool) error
 	Delete(id interface{}) error
 	LastUpdate(id uint) int64
+	// InvalidateTokens marks every JWT issued for id before now as no longer
+	// acceptable, forcing re-authentication (see InvalidatedSince).
+	InvalidateTokens(id uint)
+	InvalidatedSince(id uint) int64
 }
 
 // Storage is a users storage.
 type Storage struct {
 	back    StorageBackend
 	updated map[uint]int64
-	mux     sync.RWMutex
+	// invalidated holds, per user, the Unix time after which any JWT issued
+	// before it must be rejected outright (not just flagged for renewal).
+	// Set on security-relevant events: password change, permission change,
+	// and explicit logout. Deliberately in-memory only: it resets on
+	// restart, which is an acceptable trade-off since a restart already
+	// requires re-establishing trust.
+	invalidated map[uint]int64
+	mux         sync.RWMutex
 
 	// provision serializes the scope-collision check and the save of newly
 	// provisioned users, which must not interleave. See SaveProvisioned.
@@ -45,8 +56,9 @@ type Storage struct {
 // NewStorage creates a users storage from a backend.
 func NewStorage(back StorageBackend) *Storage {
 	return &Storage{
-		back:    back,
-		updated: map[uint]int64{},
+		back:        back,
+		updated:     map[uint]int64{},
+		invalidated: map[uint]int64{},
 	}
 }
 
@@ -175,6 +187,26 @@ func (s *Storage) LastUpdate(id uint) int64 {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 	if val, ok := s.updated[id]; ok {
+		return val
+	}
+	return 0
+}
+
+// InvalidateTokens rejects every JWT issued for id before now, regardless of
+// its expiration. Callers must invoke this after a password change, a
+// permission change, or an explicit logout.
+func (s *Storage) InvalidateTokens(id uint) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	s.invalidated[id] = time.Now().UnixNano()
+}
+
+// InvalidatedSince returns the Unix nanosecond time set by the most recent
+// InvalidateTokens call for id, or 0 if none has occurred.
+func (s *Storage) InvalidatedSince(id uint) int64 {
+	s.mux.RLock()
+	defer s.mux.RUnlock()
+	if val, ok := s.invalidated[id]; ok {
 		return val
 	}
 	return 0

@@ -35,6 +35,7 @@ const disableMultipleSelection: boolean =
   window.FileBrowser.DisableMultipleSelection;
 const disableNewFile: boolean = window.FileBrowser.DisableNewFile;
 const disableEditor: boolean = window.FileBrowser.DisableEditor;
+const disableHelp: boolean = window.FileBrowser.DisableHelp;
 
 export {
   name,
@@ -68,4 +69,5 @@ export {
   disableMultipleSelection,
   disableNewFile,
   disableEditor,
+  disableHelp,
 };

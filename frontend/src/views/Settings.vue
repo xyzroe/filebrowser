@@ -45,7 +45,7 @@
         <p>{{ t("settings.sunsetBody") }}</p>
         <p>
           <a
-            href="https://github.com/filebrowser/filebrowser#security"
+            href="https://github.com/xyzroe/filebrowser#security"
             target="_blank"
             rel="noopener noreferrer"
             >{{ t("settings.sunsetLink") }}</a
