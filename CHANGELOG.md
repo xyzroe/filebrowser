@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [2.64.0](https://github.com/xyzroe/filebrowser/compare/v2.63.23...v2.64.0) (2026-08-29)
+
+### Features
+
+* **security,ui,release:** revoke JWTs on logout/password change, hideable Help button, fork-branded release pipeline ([fdf2c9c](https://github.com/xyzroe/filebrowser/commit/fdf2c9c91bc5fb7ae3b6faf434af2c216798d62a))
+## [2.64.0](https://github.com/xyzroe/filebrowser/compare/v2.63.23...v2.64.0) (2026-08-29)
+
+### Features
+
+* **security,ui,release:** revoke JWTs on logout/password change, hideable Help button, fork-branded release pipeline ([fdf2c9c](https://github.com/xyzroe/filebrowser/commit/fdf2c9c91bc5fb7ae3b6faf434af2c216798d62a))
 ## [2.63.23](https://github.com/filebrowser/filebrowser/compare/v2.63.22...v2.63.23) (2026-07-27)
 ## [2.63.22](https://github.com/filebrowser/filebrowser/compare/v2.63.21...v2.63.22) (2026-07-27)
 
