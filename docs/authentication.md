@@ -152,6 +152,7 @@ user.viewMode=list
 user.singleClick=true
 user.hideDotfiles=false
 ```
+> In this fork, `singleClick` and `hideDotfiles` are always enforced as `true` for every user regardless of this (or any other) setting; see [Profile Settings](access-restrictions.md).
 
 3. User Scope
 ```
@@ -165,3 +166,13 @@ We also provide a no authentication mechanism for users that want to use File Br
 ```sh
 filebrowser config set --auth.method=noauth
 ```
+
+## Sessions and Logout
+
+Sessions are JSON Web Tokens (JWT); by default they expire after 30 minutes
+(`tokenExpirationTime`, configurable). In this fork, a token is also rejected
+immediately, regardless of its expiration, the moment any of the following
+happens for its user: an explicit logout (`POST /api/logout`), a password
+change, or a permission change made by an administrator. Since sessions are
+not tracked per device, logout invalidates every session for that user, not
+just the browser tab that issued it.

@@ -24,6 +24,10 @@ iwr -useb https://raw.githubusercontent.com/filebrowser/get/master/get.ps1 | iex
 filebrowser -r /path/to/your/files
 ```
 
+> [!NOTE]
+>
+> This installer script fetches upstream File Browser releases, not this fork's. Download the binary for your platform from [this fork's releases page](https://github.com/xyzroe/filebrowser/releases) instead.
+
 File Browser is now up and running. Read the ["First Boot"](#first-boot) section for more information.
 
 ## Docker
