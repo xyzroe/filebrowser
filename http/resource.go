@@ -40,12 +40,16 @@ var resourceGetHandler = withUser(func(w http.ResponseWriter, r *http.Request, d
 	if file.IsDir {
 		file.Sorting = d.user.Sorting
 		file.ApplySort()
+		for _, item := range file.Items {
+			d.attachLockInfo(item)
+		}
 		return renderJSON(w, r, file)
 	} else if encoding == "true" {
 		if !d.user.Perm.Download {
 			return http.StatusAccepted, nil
 		}
 		if file.Type != "text" {
+			d.attachLockInfo(file)
 			return renderJSON(w, r, file)
 		}
 
@@ -82,6 +86,7 @@ var resourceGetHandler = withUser(func(w http.ResponseWriter, r *http.Request, d
 		file.Content = ""
 	}
 
+	d.attachLockInfo(file)
 	return renderJSON(w, r, file)
 })
 
@@ -172,6 +177,13 @@ func resourcePostHandler(fileCache FileCache) handleFunc {
 			Checker:    d,
 		})
 		isNewFile := err != nil
+		// A brand-new, empty-bodied POST is how the "New file" UI prompt
+		// creates a file; real uploads always carry content. This lets
+		// administrators disable in-browser file creation while still
+		// allowing uploads.
+		if isNewFile && r.ContentLength == 0 && d.server.Restrictions.DisableNewFile && !d.user.Perm.Admin {
+			return http.StatusForbidden, fmt.Errorf("creating new files from the browser is disabled by the administrator; please upload a file instead")
+		}
 		if err == nil {
 			if r.URL.Query().Get("override") != "true" {
 				return http.StatusConflict, nil
@@ -226,6 +238,10 @@ func resourcePostHandler(fileCache FileCache) handleFunc {
 var resourcePutHandler = withUser(func(w http.ResponseWriter, r *http.Request, d *data) (int, error) {
 	if !d.user.Perm.Modify || !d.Check(r.URL.Path) {
 		return http.StatusForbidden, nil
+	}
+	// PUT is only used by the in-browser text editor's save action.
+	if d.server.Restrictions.DisableEditor && !d.user.Perm.Admin {
+		return http.StatusForbidden, fmt.Errorf("editing files with the built-in editor is disabled by the administrator")
 	}
 
 	// Only allow PUT for files.
@@ -285,24 +301,10 @@ func resourcePatchHandler(fileCache FileCache) handleFunc {
 			return http.StatusForbidden, nil
 		}
 
-		// Global restrictions (admin-configured, apply to every user
-		// including admins). "move" also uses action=="rename" with a
-		// destination in a different directory (see frontend moveCopy()), so
-		// a same-directory rename and a cross-directory move are
-		// distinguished by comparing parent directories.
-		switch action {
-		case "rename":
-			if path.Dir(src) == path.Dir(dst) {
-				if d.server.Restrictions.DisableRename {
-					return http.StatusForbidden, fmt.Errorf("renaming is disabled by the administrator")
-				}
-			} else if d.server.Restrictions.DisableMove {
-				return http.StatusForbidden, fmt.Errorf("moving is disabled by the administrator")
-			}
-		case "copy":
-			if d.server.Restrictions.DisableCopy {
-				return http.StatusForbidden, fmt.Errorf("copying is disabled by the administrator")
-			}
+		// Restrictions (admin-configured, apply only to non-admin users;
+		// administrators always bypass them).
+		if !d.user.Perm.Admin && action == "copy" && d.server.Restrictions.DisableCopy {
+			return http.StatusForbidden, fmt.Errorf("copying is disabled by the administrator")
 		}
 
 		err = checkParent(src, dst)

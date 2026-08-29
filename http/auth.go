@@ -137,6 +137,9 @@ func withUser(fn handleFunc) handleFunc {
 		if err != nil {
 			return http.StatusInternalServerError, err
 		}
+		// Hiding dotfiles is enforced for every user, regardless of what is
+		// stored in their profile.
+		d.user.HideDotfiles = true
 
 		canonicalizeRequestPath(r)
 		return fn(w, r, d)
@@ -255,12 +258,12 @@ func printToken(w http.ResponseWriter, _ *http.Request, d *data, user *users.Use
 			ID:                    user.ID,
 			Locale:                user.Locale,
 			ViewMode:              user.ViewMode,
-			SingleClick:           user.SingleClick,
+			SingleClick:           true,
 			RedirectAfterCopyMove: user.RedirectAfterCopyMove,
 			Perm:                  user.Perm,
 			LockPassword:          user.LockPassword,
 			Commands:              user.Commands,
-			HideDotfiles:          user.HideDotfiles,
+			HideDotfiles:          true,
 			DateFormat:            user.DateFormat,
 			Username:              user.Username,
 			AceEditorTheme:        user.AceEditorTheme,

@@ -9,6 +9,14 @@ interface ResourceBase {
   isSymlink: boolean;
   type: ResourceType;
   url: string;
+  lock?: FileLockSummary;
+}
+
+interface FileLockSummary {
+  state: "unmanaged" | "available" | "locked";
+  ownerUsername?: string;
+  lockedAt?: string; // ISO 8601 datetime
+  isCurrentUserOwner: boolean;
 }
 
 interface Resource extends ResourceBase {

@@ -256,6 +256,10 @@ body.rtl .card .card-action {
   max-width: 15em;
 }
 
+.card#versions {
+  max-width: 55em;
+}
+
 .card#share input,
 .card#share select,
 .card#share input::-webkit-inner-spin-button,

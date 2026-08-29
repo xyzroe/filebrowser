@@ -55,10 +55,11 @@ func handleWithStaticData(w http.ResponseWriter, _ *http.Request, d *data, fSys 
 		"RequireCheckoutComment":   d.server.Locking.RequireCheckoutComment,
 		"RequireCheckinComment":    d.server.Versioning.RequireCheckinComment,
 		"SharingEnabled":           d.server.Sharing.Enabled,
-		"DisableRename":            d.server.Restrictions.DisableRename,
-		"DisableMove":              d.server.Restrictions.DisableMove,
 		"DisableCopy":              d.server.Restrictions.DisableCopy,
 		"DisableDirectoryDownload": d.server.Restrictions.DisableDirectoryDownload,
+		"DisableMultipleSelection": d.server.Restrictions.DisableMultipleSelection,
+		"DisableNewFile":           d.server.Restrictions.DisableNewFile,
+		"DisableEditor":            d.server.Restrictions.DisableEditor,
 	}
 
 	if d.settings.Branding.Files != "" {

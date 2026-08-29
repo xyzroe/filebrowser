@@ -139,14 +139,15 @@ func addLockingVersioningFlags(flags *pflag.FlagSet) {
 	flags.Bool("sharing.enabled", false, "allow creating public share links (disabled by default: a publicly shared managed/versioned file can never satisfy the checkout policy)")
 }
 
-// addRestrictionsFlags adds flags letting an administrator globally disable
-// specific operations for every user (including admins), regardless of their
-// individual permissions.
+// addRestrictionsFlags adds flags letting an administrator disable specific
+// operations for every non-admin user, regardless of their individual
+// permissions. Administrators always bypass these restrictions.
 func addRestrictionsFlags(flags *pflag.FlagSet) {
-	flags.Bool("restrictions.disableRename", false, "globally disable renaming files and directories, for every user")
-	flags.Bool("restrictions.disableMove", false, "globally disable moving files and directories, for every user")
-	flags.Bool("restrictions.disableCopy", false, "globally disable copying files and directories, for every user")
-	flags.Bool("restrictions.disableDirectoryDownload", false, "globally disable downloading a whole directory (or multiple selected items) as an archive, for every user")
+	flags.Bool("restrictions.disableCopy", false, "disable copying files and directories, for non-admin users")
+	flags.Bool("restrictions.disableDirectoryDownload", false, "disable downloading a whole directory (or multiple selected items) as an archive, for non-admin users")
+	flags.Bool("restrictions.disableMultipleSelection", false, "disable selecting multiple files/directories at once, for non-admin users")
+	flags.Bool("restrictions.disableNewFile", false, "disable creating new empty files from the browser UI (uploading is still allowed), for non-admin users")
+	flags.Bool("restrictions.disableEditor", false, "disable editing text files with the built-in editor, for non-admin users")
 }
 
 var rootCmd = &cobra.Command{
@@ -467,10 +468,11 @@ func getServerSettings(v *viper.Viper, st *storage.Storage) (*settings.Server, e
 		Enabled: v.GetBool("sharing.enabled"),
 	}
 	server.Restrictions = settings.Restrictions{
-		DisableRename:            v.GetBool("restrictions.disableRename"),
-		DisableMove:              v.GetBool("restrictions.disableMove"),
 		DisableCopy:              v.GetBool("restrictions.disableCopy"),
 		DisableDirectoryDownload: v.GetBool("restrictions.disableDirectoryDownload"),
+		DisableMultipleSelection: v.GetBool("restrictions.disableMultipleSelection"),
+		DisableNewFile:           v.GetBool("restrictions.disableNewFile"),
+		DisableEditor:            v.GetBool("restrictions.disableEditor"),
 	}
 
 	return server, nil

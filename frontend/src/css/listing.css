@@ -54,6 +54,20 @@ html[dir="rtl"] #listing {
   font-weight: bold;
 }
 
+#listing .item .name .lock-icon {
+  font-size: 1em;
+  margin: 0 0 0 0.3em;
+  vertical-align: middle;
+  color: var(--red);
+}
+
+/* listing-icons.css sets content on any descendant `i::before` based on the
+   item's data-ext/data-type to pick the file-type glyph; without this reset
+   that same rule also injects a glyph before the lock icon's own "lock" text. */
+#listing .item .name i.lock-icon::before {
+  content: none !important;
+}
+
 #listing .item i {
   font-size: 4em;
   margin-right: 0.1em;

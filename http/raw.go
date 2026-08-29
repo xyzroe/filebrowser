@@ -191,7 +191,7 @@ func getFiles(d *data, path, commonPath string) ([]archives.FileInfo, error) {
 }
 
 func rawDirHandler(w http.ResponseWriter, r *http.Request, d *data, file *files.FileInfo) (int, error) {
-	if d.server.Restrictions.DisableDirectoryDownload {
+	if d.server.Restrictions.DisableDirectoryDownload && !d.user.Perm.Admin {
 		return http.StatusForbidden, fmt.Errorf("downloading a directory or archive is disabled by the administrator")
 	}
 

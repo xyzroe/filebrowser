@@ -32,7 +32,16 @@
     </div>
 
     <div>
-      <p class="name">{{ name }}</p>
+      <p class="name">
+        {{ name }}
+        <i
+          v-if="lock?.state === 'locked'"
+          class="material-icons lock-icon"
+          :title="lockTitle"
+          :aria-label="lockTitle"
+          >lock</i
+        >
+      </p>
 
       <p v-if="isDir" class="size" data-order="-1">&mdash;</p>
       <p v-else class="size" :data-order="humanSize()">{{ humanSize() }}</p>
@@ -49,13 +58,18 @@ import { useAuthStore } from "@/stores/auth";
 import { useFileStore } from "@/stores/file";
 import { useLayoutStore } from "@/stores/layout";
 
-import { enableThumbs, disableMove, disableCopy } from "@/utils/constants";
+import {
+  enableThumbs,
+  disableCopy,
+  disableMultipleSelection,
+} from "@/utils/constants";
 import { filesize } from "@/utils";
 import dayjs from "dayjs";
 import { files as api } from "@/api";
 import * as upload from "@/utils/upload";
 import { computed, inject, ref } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 
 const touches = ref<number>(0);
 
@@ -78,11 +92,20 @@ const props = defineProps<{
   index: number;
   readOnly?: boolean;
   path?: string;
+  lock?: FileLockSummary;
 }>();
 
 const authStore = useAuthStore();
 const fileStore = useFileStore();
 const layoutStore = useLayoutStore();
+const { t } = useI18n();
+
+const lockTitle = computed(() => {
+  if (props.lock?.isCurrentUserOwner) return t("locking.lockedByYou");
+  if (props.lock?.ownerUsername)
+    return t("locking.lockedByUser", { username: props.lock.ownerUsername });
+  return t("locking.lockedByOther");
+});
 
 const singleClick = computed(
   () => !props.readOnly && authStore.user?.singleClick
@@ -91,10 +114,7 @@ const isSelected = computed(
   () => fileStore.selected.indexOf(props.index) !== -1
 );
 const isDraggable = computed(
-  () =>
-    !props.readOnly &&
-    authStore.user?.perm.rename &&
-    !(disableMove && disableCopy)
+  () => !props.readOnly && authStore.user?.perm.rename
 );
 
 const canDrop = computed(() => {
@@ -169,7 +189,7 @@ const drop = async (event: Event) => {
 
   const isCopy =
     (event as KeyboardEvent).ctrlKey || (event as KeyboardEvent).metaKey;
-  if (isCopy ? disableCopy : disableMove) return;
+  if (isCopy && !authStore.user?.perm.admin && disableCopy) return;
 
   let el = event.target as HTMLElement | null;
   for (let i = 0; i < 5; i++) {
@@ -253,12 +273,14 @@ const itemClick = (event: Event | KeyboardEvent) => {
     return;
   }
 
+  const allowMulti = !disableMultipleSelection || authStore.user?.perm.admin;
+
   if (
     singleClick.value &&
-    !(event as KeyboardEvent).ctrlKey &&
-    !(event as KeyboardEvent).metaKey &&
-    !(event as KeyboardEvent).shiftKey &&
-    !fileStore.multiple
+    !(allowMulti && (event as KeyboardEvent).ctrlKey) &&
+    !(allowMulti && (event as KeyboardEvent).metaKey) &&
+    !(allowMulti && (event as KeyboardEvent).shiftKey) &&
+    !(allowMulti && fileStore.multiple)
   )
     open();
   else click(event);
@@ -288,12 +310,17 @@ const click = (event: Event | KeyboardEvent) => {
     open();
   }
 
+  // Multi-selection (ctrl/meta/shift-click, or the "select multiple" mode)
+  // can be globally disabled for non-admin users.
+  const allowMulti = !disableMultipleSelection || authStore.user?.perm.admin;
+  const ctrlOrMeta =
+    allowMulti &&
+    ((event as KeyboardEvent).ctrlKey || (event as KeyboardEvent).metaKey);
+  const shift = allowMulti && (event as KeyboardEvent).shiftKey;
+  const multiMode = allowMulti && fileStore.multiple;
+
   if (fileStore.selected.indexOf(props.index) !== -1) {
-    if (
-      (event as KeyboardEvent).ctrlKey ||
-      (event as KeyboardEvent).metaKey ||
-      fileStore.multiple
-    ) {
+    if (ctrlOrMeta || multiMode) {
       fileStore.removeSelected(props.index);
     } else {
       fileStore.selected = [props.index];
@@ -301,7 +328,7 @@ const click = (event: Event | KeyboardEvent) => {
     return;
   }
 
-  if ((event as KeyboardEvent).shiftKey && fileStore.selected.length > 0) {
+  if (shift && fileStore.selected.length > 0) {
     let fi = 0;
     let la = 0;
 
@@ -322,11 +349,7 @@ const click = (event: Event | KeyboardEvent) => {
     return;
   }
 
-  if (
-    !(event as KeyboardEvent).ctrlKey &&
-    !(event as KeyboardEvent).metaKey &&
-    !fileStore.multiple
-  ) {
+  if (!ctrlOrMeta && !multiMode) {
     fileStore.selected = [];
   }
   fileStore.selected.push(props.index);

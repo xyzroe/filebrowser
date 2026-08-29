@@ -28,6 +28,7 @@
         </button>
 
         <button
+          v-if="canCreateNewFile"
           @click="showHover('newFile')"
           class="action"
           :aria-label="$t('sidebar.newFile')"
@@ -128,6 +129,7 @@ import {
   hideLoginButton,
   disableExternal,
   disableUsedPercentage,
+  disableNewFile,
   noAuth,
   logoutPage,
   loginPage,
@@ -161,6 +163,9 @@ export default {
     disableExternal: () => disableExternal,
     disableUsedPercentage: () => disableUsedPercentage,
     canLogout: () => !noAuth && (loginPage || logoutPage !== "/login"),
+    canCreateNewFile() {
+      return !disableNewFile || this.user?.perm.admin;
+    },
   },
   methods: {
     ...mapActions(useLayoutStore, ["closeHovers", "showHover"]),

@@ -6,6 +6,19 @@
 
     <div class="card-content">
       <p>{{ $t("locking.cancelCheckoutMessage") }}</p>
+
+      <p v-if="selectedLock?.state === 'locked'" :title="lockAbsoluteTime">
+        <strong>{{
+          $t(
+            selectedLock.isCurrentUserOwner
+              ? "locking.lockedByYou"
+              : "locking.lockedByUser",
+            { username: selectedLock.ownerUsername }
+          )
+        }}</strong>
+        &mdash; {{ lockRelativeTime }}
+      </p>
+
       <p>
         <label for="cancel-checkout-reason">{{
           $t("locking.cancelCheckoutReasonLabel")
@@ -43,8 +56,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, inject } from "vue";
+import { ref, computed, inject } from "vue";
 import { useI18n } from "vue-i18n";
+import dayjs from "dayjs";
 import { useLayoutStore } from "@/stores/layout";
 import { useFileStore } from "@/stores/file";
 import { versioning as api } from "@/api";
@@ -65,6 +79,22 @@ const selectedPath = () => {
   }
   return fileStore.req?.path ?? "/";
 };
+
+const selectedLock = computed<FileLockSummary | null>(() => {
+  if (fileStore.selectedCount === 1 && fileStore.req) {
+    return fileStore.req.items[fileStore.selected[0]]?.lock ?? null;
+  }
+  return fileStore.req?.lock ?? null;
+});
+
+const lockRelativeTime = computed(() =>
+  selectedLock.value?.lockedAt ? dayjs(selectedLock.value.lockedAt).fromNow() : ""
+);
+const lockAbsoluteTime = computed(() =>
+  selectedLock.value?.lockedAt
+    ? new Date(Date.parse(selectedLock.value.lockedAt)).toLocaleString()
+    : ""
+);
 
 const submit = async () => {
   try {

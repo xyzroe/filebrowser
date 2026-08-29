@@ -108,13 +108,15 @@ type Sharing struct {
 	Enabled bool `json:"enabled"`
 }
 
-// Restrictions globally disables specific operations for every user,
-// including admins, regardless of their individual permissions.
+// Restrictions disables specific operations for every non-admin user,
+// regardless of their individual permissions; administrators always bypass
+// these restrictions.
 type Restrictions struct {
-	DisableRename            bool `json:"disableRename"`
-	DisableMove              bool `json:"disableMove"`
 	DisableCopy              bool `json:"disableCopy"`
 	DisableDirectoryDownload bool `json:"disableDirectoryDownload"`
+	DisableMultipleSelection bool `json:"disableMultipleSelection"`
+	DisableNewFile           bool `json:"disableNewFile"`
+	DisableEditor            bool `json:"disableEditor"`
 }
 
 const (

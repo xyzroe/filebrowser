@@ -36,6 +36,7 @@ import { files as api } from "@/api";
 import { storeToRefs } from "pinia";
 import { useFileStore } from "@/stores/file";
 import { useLayoutStore } from "@/stores/layout";
+import { useAuthStore } from "@/stores/auth";
 
 import HeaderBar from "@/components/header/HeaderBar.vue";
 import Breadcrumbs from "@/components/Breadcrumbs.vue";
@@ -44,13 +45,14 @@ import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
 import FileListing from "@/views/files/FileListing.vue";
 import { StatusError } from "@/api/utils";
-import { name } from "../utils/constants";
+import { name, disableEditor } from "../utils/constants";
 
 const Editor = defineAsyncComponent(() => import("@/views/files/Editor.vue"));
 const Preview = defineAsyncComponent(() => import("@/views/files/Preview.vue"));
 
 const layoutStore = useLayoutStore();
 const fileStore = useFileStore();
+const authStore = useAuthStore();
 
 const { reload } = storeToRefs(fileStore);
 
@@ -67,11 +69,16 @@ const currentView = computed(() => {
     return null;
   }
 
+  // The built-in editor can be globally disabled for non-admin users; in
+  // that case, files that would normally open in the editor fall back to
+  // the read-only Preview view instead.
+  const editorAllowed = !disableEditor || authStore.user?.perm.admin;
+
   if (fileStore.req.isDir) {
     return FileListing;
   } else if (fileStore.req.extension.toLowerCase() === ".csv") {
     // CSV files use Preview for table view, unless ?edit=true
-    if (route.query.edit === "true") {
+    if (route.query.edit === "true" && editorAllowed) {
       return Editor;
     }
     return Preview;
@@ -79,7 +86,7 @@ const currentView = computed(() => {
     fileStore.req.type === "text" ||
     fileStore.req.type === "textImmutable"
   ) {
-    return Editor;
+    return editorAllowed ? Editor : Preview;
   } else {
     return Preview;
   }

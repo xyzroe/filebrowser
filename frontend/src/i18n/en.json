@@ -164,7 +164,9 @@
     "versionsCurrent": "Current",
     "versionsNoRestoreHint": "To make an older version current, download it and then check it in as a new version.",
     "versionsEmpty": "No version history for this file yet.",
-    "versionNumber": "Version {number}"
+    "versionNumber": "Version {number}",
+    "createdBy": "Created by",
+    "comment": "Comment"
   },
   "permanent": "Permanent",
   "prompts": {

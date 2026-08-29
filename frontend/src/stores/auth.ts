@@ -26,14 +26,21 @@ export const useAuthStore = defineStore("auth", {
       }
 
       setLocale(user.locale || detectLocale());
-      this.user = user;
+      // Hide dotfiles and single-click open are enforced for every user,
+      // regardless of what is stored in their profile.
+      this.user = { ...user, hideDotfiles: true, singleClick: true };
     },
     updateUser(user: Partial<IUser>) {
       if (user.locale) {
         setLocale(user.locale);
       }
 
-      this.user = { ...this.user, ...cloneDeep(user) } as IUser;
+      this.user = {
+        ...this.user,
+        ...cloneDeep(user),
+        hideDotfiles: true,
+        singleClick: true,
+      } as IUser;
     },
     // easily reset state using `$reset`
     clearUser() {

@@ -10,7 +10,9 @@
               {{ t("settings.profileSettings") }}
             </li></router-link
           >
-          <router-link to="/settings/shares" v-if="user?.perm.share"
+          <router-link
+            to="/settings/shares"
+            v-if="user?.perm.share && sharingEnabled"
             ><li :class="{ active: $route.path === '/settings/shares' }">
               {{ t("settings.shareManagement") }}
             </li></router-link
@@ -73,6 +75,7 @@ import { useLayoutStore } from "@/stores/layout";
 import HeaderBar from "@/components/header/HeaderBar.vue";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { sharingEnabled } from "@/utils/constants";
 
 const { t } = useI18n();
 

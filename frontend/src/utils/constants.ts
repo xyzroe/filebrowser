@@ -28,11 +28,13 @@ const requireCheckoutComment: boolean =
 const requireCheckinComment: boolean =
   window.FileBrowser.RequireCheckinComment;
 const sharingEnabled: boolean = window.FileBrowser.SharingEnabled;
-const disableRename: boolean = window.FileBrowser.DisableRename;
-const disableMove: boolean = window.FileBrowser.DisableMove;
 const disableCopy: boolean = window.FileBrowser.DisableCopy;
 const disableDirectoryDownload: boolean =
   window.FileBrowser.DisableDirectoryDownload;
+const disableMultipleSelection: boolean =
+  window.FileBrowser.DisableMultipleSelection;
+const disableNewFile: boolean = window.FileBrowser.DisableNewFile;
+const disableEditor: boolean = window.FileBrowser.DisableEditor;
 
 export {
   name,
@@ -61,8 +63,9 @@ export {
   requireCheckoutComment,
   requireCheckinComment,
   sharingEnabled,
-  disableRename,
-  disableMove,
   disableCopy,
   disableDirectoryDownload,
+  disableMultipleSelection,
+  disableNewFile,
+  disableEditor,
 };

@@ -7,38 +7,11 @@
         </div>
 
         <div class="card-content">
-          <p>
-            <input type="checkbox" name="hideDotfiles" v-model="hideDotfiles" />
-            {{ t("settings.hideDotfiles") }}
-          </p>
-          <p>
-            <input type="checkbox" name="singleClick" v-model="singleClick" />
-            {{ t("settings.singleClick") }}
-          </p>
-          <p>
-            <input
-              type="checkbox"
-              name="redirectAfterCopyMove"
-              v-model="redirectAfterCopyMove"
-            />
-            {{ t("settings.redirectAfterCopyMove") }}
-          </p>
-          <p>
-            <input type="checkbox" name="dateFormat" v-model="dateFormat" />
-            {{ t("settings.setDateFormat") }}
-          </p>
           <h3>{{ t("settings.language") }}</h3>
           <languages
             class="input input--block"
             v-model:locale="locale"
           ></languages>
-
-          <h3>{{ t("settings.aceEditorTheme") }}</h3>
-          <AceEditorTheme
-            class="input input--block"
-            v-model:aceEditorTheme="aceEditorTheme"
-            id="aceTheme"
-          ></AceEditorTheme>
         </div>
 
         <div class="card-action">
@@ -105,7 +78,6 @@
 import { useAuthStore } from "@/stores/auth";
 import { useLayoutStore } from "@/stores/layout";
 import { users as api } from "@/api";
-import AceEditorTheme from "@/components/settings/AceEditorTheme.vue";
 import Languages from "@/components/settings/Languages.vue";
 import { computed, inject, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -147,8 +119,10 @@ onMounted(async () => {
   layoutStore.loading = true;
   if (authStore.user === null) return false;
   locale.value = authStore.user.locale;
-  hideDotfiles.value = authStore.user.hideDotfiles;
-  singleClick.value = authStore.user.singleClick;
+  // Hide dotfiles and single-click open are always enforced for every user;
+  // the Profile Settings UI no longer exposes them as toggles.
+  hideDotfiles.value = true;
+  singleClick.value = true;
   redirectAfterCopyMove.value = authStore.user.redirectAfterCopyMove;
   dateFormat.value = authStore.user.dateFormat;
   aceEditorTheme.value = authStore.user.aceEditorTheme;

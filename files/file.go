@@ -51,6 +51,20 @@ type FileInfo struct {
 	Token      string            `json:"token,omitempty"`
 	currentDir []os.FileInfo     `json:"-"`
 	Resolution *ImageResolution  `json:"resolution,omitempty"`
+	// Lock is populated by the http layer (not by NewFileInfo) when the
+	// locking/versioning feature is enabled, so a directory listing can show
+	// each file's lock status without a separate request per item.
+	Lock *FileLockInfo `json:"lock,omitempty"`
+}
+
+// FileLockInfo is the lock-status summary attached to a FileInfo for the
+// locking/versioning feature. It mirrors the subset of versioning.FileLock
+// that is safe to expose to any user who can see the file.
+type FileLockInfo struct {
+	State              string `json:"state"` // "unmanaged" | "available" | "locked"
+	OwnerUsername      string `json:"ownerUsername,omitempty"`
+	LockedAt           string `json:"lockedAt,omitempty"`
+	IsCurrentUserOwner bool   `json:"isCurrentUserOwner"`
 }
 
 // FileOptions are the options when getting a file info.

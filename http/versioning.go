@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/filebrowser/filebrowser/v2/files"
 	"github.com/filebrowser/filebrowser/v2/versioning"
 )
 
@@ -70,6 +71,44 @@ func requirePathQuery(r *http.Request) (string, error) {
 
 func requireVersioningEnabled(d *data) bool {
 	return d.versioning != nil && d.versioning.Cfg.VersioningEnabled
+}
+
+// attachLockInfo populates fi.Lock with the file's current lock summary, so a
+// directory listing (or a single-file response) can show a lock icon/owner
+// without a separate request per item. It is a no-op for directories and when
+// versioning is disabled, and never fails the request: a lookup error simply
+// leaves fi.Lock unset.
+func (d *data) attachLockInfo(fi *files.FileInfo) {
+	if fi == nil || fi.IsDir || !requireVersioningEnabled(d) {
+		return
+	}
+	canonical, err := d.canonicalPath(fi.Path)
+	if err != nil {
+		return
+	}
+	lf, lock, err := d.versioning.LockInfo(versioning.DefaultSourceID, canonical)
+	if err != nil {
+		if !errors.Is(err, versioning.ErrFileNotManaged) {
+			log.Printf("WARNING: versioning: could not fetch lock info for %q: %v", canonical, err)
+		}
+		return
+	}
+	_ = lf
+
+	info := &files.FileLockInfo{State: "available"}
+	if lock != nil {
+		info.State = "locked"
+		info.LockedAt = lock.LockedAt.Format(timeFormatRFC3339)
+		info.IsCurrentUserOwner = lock.OwnerUserID == d.user.ID
+
+		showOwner := info.IsCurrentUserOwner || d.user.Perm.Admin || d.server.Locking.ShowOwnerToUsers
+		if showOwner {
+			if u, uerr := d.store.Users.Get(d.server.Root, d.server.FollowExternalSymlinks, lock.OwnerUserID); uerr == nil {
+				info.OwnerUsername = u.Username
+			}
+		}
+	}
+	fi.Lock = info
 }
 
 // isLockedByOther reports whether path names a managed file currently locked

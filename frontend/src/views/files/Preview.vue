@@ -19,14 +19,18 @@
       <template #actions>
         <action
           :disabled="layoutStore.loading"
-          v-if="authStore.user?.perm.rename && !disableRename"
+          v-if="authStore.user?.perm.rename"
           icon="mode_edit"
           :label="$t('buttons.rename')"
           show="rename"
         />
         <action
           :disabled="layoutStore.loading"
-          v-if="isCsv && authStore.user?.perm.modify"
+          v-if="
+            isCsv &&
+            authStore.user?.perm.modify &&
+            (authStore.user?.perm.admin || !disableEditor)
+          "
           icon="edit_note"
           :label="t('buttons.editAsText')"
           @action="editAsText"
@@ -167,7 +171,14 @@
         >
         </VideoPlayer>
         <object v-else-if="isPdf" class="pdf" :data="previewUrl"></object>
-        <div v-else-if="fileStore.req?.type == 'blob'" class="info">
+        <div
+          v-else-if="
+            ['blob', 'text', 'textImmutable'].includes(
+              fileStore.req?.type || ''
+            )
+          "
+          class="info"
+        >
           <div class="title">
             <i class="material-icons">feedback</i>
             {{ $t("files.noPreview") }}
@@ -265,13 +276,12 @@ import { useLayoutStore } from "@/stores/layout";
 
 import { files as api } from "@/api";
 import { versioning as lockApi } from "@/api";
-import type { LockInfo } from "@/api/versioning";
 import { createURL } from "@/api/utils";
 import {
   resizePreview,
   lockingEnabled,
   allowOwnerCancelCheckout,
-  disableRename,
+  disableEditor,
 } from "@/utils/constants";
 import url from "@/utils/url";
 import { throttle } from "lodash-es";
@@ -406,25 +416,10 @@ const isResizeEnabled = computed(() => resizePreview);
 
 // --- Locking/versioning (checkout/check-in) ---
 // Mirrors the same logic in FileListing.vue's single-selection case, since a
-// preview is always exactly one file.
-const selectedLock = ref<LockInfo | null>(null);
-let lockRequestToken = 0;
-
-watch(
-  () => fileStore.req?.path,
-  async (path) => {
-    selectedLock.value = null;
-    if (!lockingEnabled || !path || fileStore.req?.isDir) return;
-    const token = ++lockRequestToken;
-    try {
-      const lock = await lockApi.getLock(path);
-      if (token === lockRequestToken) selectedLock.value = lock;
-    } catch {
-      // Treat a failed lookup as "unknown": no lock-specific actions shown,
-      // the plain download action remains available as a fallback.
-    }
-  },
-  { immediate: true }
+// preview is always exactly one file. The backend attaches lock status
+// directly to the file response, so no separate request is needed here.
+const selectedLock = computed<FileLockSummary | null>(
+  () => fileStore.req?.lock ?? null
 );
 
 const isLockOwner = computed(() => !!selectedLock.value?.isCurrentUserOwner);

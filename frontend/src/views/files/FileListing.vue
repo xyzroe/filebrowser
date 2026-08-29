@@ -110,6 +110,7 @@
         />
         <action icon="info" :label="t('buttons.info')" show="info" />
         <action
+          v-if="!disableMultipleSelection || authStore.user?.perm.admin"
           icon="check_circle"
           :label="t('buttons.selectMultiple')"
           @action="toggleMultipleSelection"
@@ -267,6 +268,7 @@
             v-bind:type="item.type"
             v-bind:size="item.size"
             v-bind:path="item.path"
+            v-bind:lock="item.lock"
           >
           </item>
         </div>
@@ -290,6 +292,7 @@
             v-bind:type="item.type"
             v-bind:size="item.size"
             v-bind:path="item.path"
+            v-bind:lock="item.lock"
           >
           </item>
         </div>
@@ -418,16 +421,14 @@ import { useFileStore } from "@/stores/file";
 import { useLayoutStore } from "@/stores/layout";
 
 import { users, files as api, versioning as lockApi } from "@/api";
-import type { LockInfo } from "@/api/versioning";
 import {
   enableExec,
   lockingEnabled,
   allowOwnerCancelCheckout,
   sharingEnabled,
-  disableRename,
-  disableMove,
   disableCopy,
   disableDirectoryDownload,
+  disableMultipleSelection,
 } from "@/utils/constants";
 import * as upload from "@/utils/upload";
 import buttons from "@/utils/buttons";
@@ -570,64 +571,45 @@ const isArchiveDownload = computed(() => {
   return false;
 });
 
+// Restrictions only apply to non-admin users; admins always bypass them.
+const isAdmin = computed(() => !!authStore.user?.perm.admin);
+
 const headerButtons = computed(() => {
   return {
     upload: authStore.user?.perm.create,
     download:
       authStore.user?.perm.download &&
       !lockActions.value.hideDownload &&
-      !(disableDirectoryDownload && isArchiveDownload.value),
+      (isAdmin.value ||
+        !(disableDirectoryDownload && isArchiveDownload.value)),
     shell: authStore.user?.perm.execute && enableExec,
     delete: fileStore.selectedCount > 0 && authStore.user?.perm.delete,
-    rename:
-      fileStore.selectedCount === 1 &&
-      authStore.user?.perm.rename &&
-      !disableRename,
+    rename: fileStore.selectedCount === 1 && authStore.user?.perm.rename,
     share:
       fileStore.selectedCount === 1 &&
       authStore.user?.perm.share &&
       authStore.user?.perm.download &&
       sharingEnabled,
-    move:
-      fileStore.selectedCount > 0 &&
-      authStore.user?.perm.rename &&
-      !disableMove,
+    move: fileStore.selectedCount > 0 && authStore.user?.perm.rename,
     copy:
       fileStore.selectedCount > 0 &&
       authStore.user?.perm.create &&
-      !disableCopy,
+      (isAdmin.value || !disableCopy),
   };
 });
 
 // --- Locking/versioning (checkout/check-in) ---
-// Lock status for the single selected non-directory file is fetched on
-// demand whenever the selection changes, rather than for every item in the
-// listing (which would need a bulk lock-status endpoint this MVP does not
-// have). Actions below only ever apply to a single selected file.
-const selectedLock = ref<LockInfo | null>(null);
-let lockRequestToken = 0;
-
+// The backend attaches lock status directly to each listing item (and to a
+// single-file response), so no separate per-item request is needed here; it
+// simply refreshes whenever the listing reloads (e.g. after an action).
 const singleSelectedItem = computed(() => {
   if (fileStore.selectedCount !== 1 || !fileStore.req) return null;
   const item = fileStore.req.items[fileStore.selected[0]];
   return item && !item.isDir ? item : null;
 });
 
-watch(
-  singleSelectedItem,
-  async (item) => {
-    selectedLock.value = null;
-    if (!lockingEnabled || !item) return;
-    const token = ++lockRequestToken;
-    try {
-      const lock = await lockApi.getLock(item.path);
-      if (token === lockRequestToken) selectedLock.value = lock;
-    } catch {
-      // Treat a failed lookup as "unknown": no lock-specific actions shown,
-      // the plain download/etc. actions remain available as a fallback.
-    }
-  },
-  { immediate: true }
+const selectedLock = computed<FileLockSummary | null>(
+  () => singleSelectedItem.value?.lock ?? null
 );
 
 const isLockOwner = computed(() => !!selectedLock.value?.isCurrentUserOwner);
@@ -751,12 +733,7 @@ const keyEvent = (event: KeyboardEvent) => {
   }
 
   if (event.key === "F2") {
-    if (
-      !authStore.user?.perm.rename ||
-      disableRename ||
-      fileStore.selectedCount !== 1
-    )
-      return;
+    if (!authStore.user?.perm.rename || fileStore.selectedCount !== 1) return;
 
     // Show rename prompt.
     layoutStore.showHover("rename");
@@ -837,7 +814,7 @@ const copyCut = (event: Event | KeyboardEvent): void => {
 
 const paste = async (event: Event) => {
   if ((event.target as HTMLElement).tagName?.toLowerCase() === "input") return;
-  if (clipboardStore.key === "x" ? disableMove : disableCopy) return;
+  if (!isAdmin.value && clipboardStore.key === "c" && disableCopy) return;
 
   // TODO router location should it be
   const items: any[] = [];

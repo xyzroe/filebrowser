@@ -27,6 +27,18 @@
         <strong>{{ $t("prompts.lastModified") }}:</strong> {{ humanTime }}
       </p>
 
+      <p v-if="lock && lock.state === 'locked'" :title="lockAbsoluteTime">
+        <strong>{{
+          $t(
+            lock.isCurrentUserOwner
+              ? "locking.lockedByYou"
+              : "locking.lockedByUser",
+            { username: lock.ownerUsername }
+          )
+        }}</strong>
+        &mdash; {{ lockRelativeTime }}
+      </p>
+
       <template v-if="dir && selected.length === 0">
         <p>
           <strong>{{ $t("prompts.numberFiles") }}:</strong> {{ req.numFiles }}
@@ -169,6 +181,20 @@ export default {
         return this.req.resolution;
       }
       return null;
+    },
+    lock: function () {
+      if (this.selectedCount > 1) return null;
+      return this.selectedCount === 0
+        ? this.req?.lock
+        : this.req.items[this.selected[0]]?.lock;
+    },
+    lockRelativeTime: function () {
+      return this.lock?.lockedAt ? dayjs(this.lock.lockedAt).fromNow() : "";
+    },
+    lockAbsoluteTime: function () {
+      return this.lock?.lockedAt
+        ? new Date(Date.parse(this.lock.lockedAt)).toLocaleString()
+        : "";
     },
   },
   methods: {
