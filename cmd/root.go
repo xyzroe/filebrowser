@@ -239,7 +239,7 @@ user created with the credentials from options "username" and "password".`,
 		}
 		server.Root = root
 
-		versioningSvc, err := setupVersioning(v, server, st.Storage.Versioning)
+		versioningSvc, err := setupVersioning(v, server, st.Versioning)
 		if err != nil {
 			return err
 		}

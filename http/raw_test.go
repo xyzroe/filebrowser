@@ -31,8 +31,11 @@ func TestRawArchiveDoesNotManufactureTraversal(t *testing.T) {
 
 	// One legal Linux/macOS filename whose bytes include backslashes. It does not
 	// traverse on the server; it only becomes "../../evil.sh" if the builder
-	// turns "\" into "/".
-	planted := filepath.Join(userScope, "ziptest", "..\\..\\evil.sh")
+	// turns "\" into "/". It deliberately does not start with "." so that it is
+	// not itself filtered out as a dotfile (HideDotfiles is enforced for every
+	// user; see withUser in http/auth.go), which is an orthogonal feature to
+	// what this regression test is about.
+	planted := filepath.Join(userScope, "ziptest", "safe..\\..\\evil.sh")
 	if err := os.WriteFile(planted, []byte("#!/bin/sh\necho PWNED"), 0o644); err != nil {
 		t.Skipf("cannot create backslash-named file: %v", err)
 	}
