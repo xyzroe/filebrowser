@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [2.65.0](https://github.com/xyzroe/filebrowser/compare/v2.64.0...v2.65.0) (2026-08-30)
+
+### Features
+
+* **sidebar:** show files locked by the current user, sync German locale ([e6c36a9](https://github.com/xyzroe/filebrowser/commit/e6c36a9e61194f9993d7e16319157de4a5a5895e))
+
+### Bug Fixes
+
+* **ci:** correct release-detection grep in auto-release workflow ([24ca277](https://github.com/xyzroe/filebrowser/commit/24ca277f62a53025272d6025ea2a2f9868789828))
+* **ci:** drop GPG signing from auto-release version bump ([68c0a6c](https://github.com/xyzroe/filebrowser/commit/68c0a6c984fced7ef48128677cdf643f47f42067))
 ## [2.64.0](https://github.com/xyzroe/filebrowser/compare/v2.63.23...v2.64.0) (2026-08-29)
 
 ### Features
