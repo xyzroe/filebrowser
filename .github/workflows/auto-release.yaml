@@ -46,7 +46,7 @@ jobs:
           fi
       - name: Bump version and tag
         if: steps.check.outputs.release == 'true'
-        run: npx --yes commit-and-tag-version -s
+        run: npx --yes commit-and-tag-version
       - name: Push changes and tags
         if: steps.check.outputs.release == 'true'
         run: git push --follow-tags origin master
