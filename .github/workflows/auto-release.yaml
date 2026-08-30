@@ -39,7 +39,7 @@ jobs:
       - name: Check for release-worthy commits
         id: check
         run: |
-          if npx --yes commit-and-tag-version --dry-run --skip 2>&1 | grep -q "^tagging release"; then
+          if npx --yes commit-and-tag-version --dry-run --skip 2>&1 | grep -q "tagging release"; then
             echo "release=true" >> "$GITHUB_OUTPUT"
           else
             echo "release=false" >> "$GITHUB_OUTPUT"
