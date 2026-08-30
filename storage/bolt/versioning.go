@@ -145,6 +145,15 @@ func (b *versioningBackend) DeleteLock(fileID string) error {
 	return err
 }
 
+func (b *versioningBackend) ListLocksByOwner(ownerUserID uint) ([]*versioning.FileLock, error) {
+	var locks []*versioning.FileLock
+	err := b.db.Select(q.Eq("OwnerUserID", ownerUserID)).Find(&locks)
+	if errors.Is(err, storm.ErrNotFound) {
+		return []*versioning.FileLock{}, nil
+	}
+	return locks, err
+}
+
 func (b *versioningBackend) AppendAudit(e *versioning.AuditEvent) error {
 	return b.db.Save(e)
 }

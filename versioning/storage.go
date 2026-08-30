@@ -28,6 +28,9 @@ type Backend interface {
 	GetLock(fileID string) (*FileLock, error)
 	UpdateLock(l *FileLock) error
 	DeleteLock(fileID string) error
+	// ListLocksByOwner returns every active lock owned by ownerUserID, for
+	// showing a user which files they currently have checked out.
+	ListLocksByOwner(ownerUserID uint) ([]*FileLock, error)
 
 	AppendAudit(e *AuditEvent) error
 	ListAuditByFileID(fileID string) ([]*AuditEvent, error)

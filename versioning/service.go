@@ -81,6 +81,31 @@ func (s *Service) LockInfo(sourceID, canonicalPath string) (*LogicalFile, *FileL
 	return lf, lock, nil
 }
 
+// OwnedLock pairs a lock with the logical file it covers, for listing every
+// file a user currently has checked out.
+type OwnedLock struct {
+	Lock *FileLock
+	File *LogicalFile
+}
+
+// ListLocksOwnedBy returns every active lock owned by userID, along with the
+// logical file (and therefore current path) each one covers.
+func (s *Service) ListLocksOwnedBy(userID uint) ([]OwnedLock, error) {
+	locks, err := s.storage.back.ListLocksByOwner(userID)
+	if err != nil {
+		return nil, err
+	}
+	owned := make([]OwnedLock, 0, len(locks))
+	for _, lock := range locks {
+		lf, ferr := s.storage.back.GetLogicalFileByID(lock.FileID)
+		if ferr != nil {
+			continue
+		}
+		owned = append(owned, OwnedLock{Lock: lock, File: lf})
+	}
+	return owned, nil
+}
+
 // Version returns a single version record of a logical file (used by the HTTP
 // layer to resolve the object key after AuthorizeDownload approves a request).
 func (s *Service) Version(fileID string, versionNumber int) (*FileVersion, error) {

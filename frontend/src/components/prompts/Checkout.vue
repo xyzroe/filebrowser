@@ -75,6 +75,7 @@ const selectedPath = () => {
 const submit = async () => {
   try {
     await api.takeForWork(selectedPath(), comment.value);
+    fileStore.reload = true;
     closeHovers();
   } catch (e) {
     $showError(e as Error);

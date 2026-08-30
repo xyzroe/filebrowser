@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/filebrowser/filebrowser/v2/files"
 	"github.com/filebrowser/filebrowser/v2/versioning"
@@ -746,4 +747,41 @@ var forceUnlockHandler = withAdmin(func(w http.ResponseWriter, r *http.Request, 
 		return writeVersioningError(w, err)
 	}
 	return http.StatusNoContent, nil
+})
+
+type myLockInfo struct {
+	Path     string `json:"path"`
+	LockedAt string `json:"lockedAt"`
+}
+
+type myLocksResponse struct {
+	Locks []myLockInfo `json:"locks"`
+}
+
+// myLocksHandler lists every file the requesting user currently has checked
+// out, for display in the sidebar.
+var myLocksHandler = withUser(func(w http.ResponseWriter, r *http.Request, d *data) (int, error) {
+	if !requireVersioningEnabled(d) {
+		return http.StatusNotFound, nil
+	}
+
+	owned, err := d.versioning.ListLocksOwnedBy(d.user.ID)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	infos := make([]myLockInfo, 0, len(owned))
+	for _, o := range owned {
+		p := o.File.CanonicalPath
+		if scope := d.user.Scope; scope != "/" && strings.HasPrefix(p, scope) {
+			if rel := strings.TrimPrefix(p, scope); rel != "" {
+				p = rel
+			} else {
+				p = "/"
+			}
+		}
+		infos = append(infos, myLockInfo{Path: p, LockedAt: o.Lock.LockedAt.Format(timeFormatRFC3339)})
+	}
+
+	return renderJSON(w, r, myLocksResponse{Locks: infos})
 })

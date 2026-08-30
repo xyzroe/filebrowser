@@ -96,6 +96,18 @@
       {{ $t("sidebar.diskUsed", { used: usage.used, total: usage.total }) }}
     </div>
 
+    <div class="my-locks" v-if="isLoggedIn && lockingEnabled">
+      <p v-if="myLocks.length === 0" class="my-locks-empty">
+        {{ $t("sidebar.noLockedFiles") }}
+      </p>
+      <template v-else>
+        <p class="my-locks-title">{{ $t("sidebar.lockedFiles") }}</p>
+        <ul class="my-locks-list">
+          <li v-for="lock in myLocks" :key="lock.path">{{ lock.path }}</li>
+        </ul>
+      </template>
+    </div>
+
     <p class="credits">
       <span>
         <span v-if="disableExternal">File Browser</span>
@@ -131,11 +143,12 @@ import {
   disableUsedPercentage,
   disableNewFile,
   disableHelp,
+  lockingEnabled,
   noAuth,
   logoutPage,
   loginPage,
 } from "@/utils/constants";
-import { files as api } from "@/api";
+import { files as api, versioning as lockApi } from "@/api";
 import ProgressBar from "@/components/ProgressBar.vue";
 import prettyBytes from "pretty-bytes";
 
@@ -146,6 +159,9 @@ export default {
   setup() {
     const usage = reactive(USAGE_DEFAULT);
     return { usage, usageAbortController: new AbortController() };
+  },
+  data() {
+    return { myLocks: [] };
   },
   components: {
     ProgressBar,
@@ -170,6 +186,7 @@ export default {
     canShowHelp() {
       return !disableHelp || this.user?.perm.admin;
     },
+    lockingEnabled: () => lockingEnabled,
   },
   methods: {
     ...mapActions(useLayoutStore, ["closeHovers", "showHover"]),
@@ -212,6 +229,14 @@ export default {
     help() {
       this.showHover("help");
     },
+    async fetchMyLocks() {
+      if (!lockingEnabled || !this.isLoggedIn) return;
+      try {
+        this.myLocks = await lockApi.myLocks();
+      } catch {
+        // Non-fatal: leave the previous list shown rather than surfacing an error.
+      }
+    },
     logout: auth.logout,
   },
   watch: {
@@ -219,9 +244,13 @@ export default {
       handler(to) {
         if (to.path.includes("/files")) {
           this.fetchUsage();
+          this.fetchMyLocks();
         }
       },
       immediate: true,
+    },
+    reload() {
+      this.fetchMyLocks();
     },
   },
   unmounted() {

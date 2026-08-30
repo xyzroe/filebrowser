@@ -80,6 +80,7 @@ func NewHandler(
 		api.Handle("/resources/versions/download", monkey(versionDownloadHandler, "")).Methods("GET")
 		api.Handle("/resources/checkin", monkey(checkinHandler, "")).Methods("POST")
 		api.Handle("/admin/resources/unlock", monkey(forceUnlockHandler, "")).Methods("POST")
+		api.Handle("/locks/mine", monkey(myLocksHandler, "")).Methods("GET")
 	}
 
 	api.PathPrefix("/resources").Handler(monkey(resourceGetHandler, "/api/resources")).Methods("GET")

@@ -1,6 +1,8 @@
 {
   "buttons": {
     "cancel": "Abbrechen",
+    "cancelCheckout": "Auschecken abbrechen",
+    "checkIn": "Neue Version einchecken",
     "clear": "Leeren",
     "close": "Schließen",
     "continue": "Weiter",
@@ -11,6 +13,11 @@
     "create": "Erstellen",
     "delete": "Löschen",
     "download": "Herunterladen",
+    "downloadAgain": "Erneut herunterladen",
+    "downloadVersion": "Herunterladen",
+    "forceUnlock": "Sperre erzwungen aufheben",
+    "takeForWork": "Zur Bearbeitung übernehmen",
+    "versions": "Versionen",
     "file": "Datei",
     "folder": "Ordner",
     "fullScreen": "Vollbild umschalten",
@@ -127,6 +134,39 @@
     "logout_reasons": {
       "inactivity": "Du wurdest wegen Inaktivität abgemeldet."
     }
+  },
+  "locking": {
+    "available": "Verfügbar",
+    "lockedByYou": "Von dir gesperrt",
+    "lockedByUser": "Gesperrt von {username}",
+    "lockedByOther": "Von einem anderen Benutzer gesperrt",
+    "staleWarning": "Sperre benötigt Aufmerksamkeit",
+    "unmanaged": "Noch nicht indiziert",
+    "checkoutTitle": "Zur Bearbeitung übernehmen",
+    "checkoutMessage": "Durch das Herunterladen wird diese Datei (und alle ihre Versionen) für dich reserviert. Andere Benutzer können sie nicht herunterladen oder ersetzen, bis du eine neue Version einreichst, das Auschecken abbrichst oder ein Administrator die Sperre erzwungen aufhebt. Das Schließen des Browsers entfernt die Sperre nicht.",
+    "checkoutCommentLabel": "Kommentar (optional)",
+    "checkoutCommentRequired": "Kommentar (erforderlich)",
+    "checkinTitle": "Neue Version einchecken",
+    "checkinMessage": "Lade eine Ersatzdatei hoch. Der Server behält den aktuellen Dateinamen und Pfad bei; verwende separat „Umbenennen“, wenn du das ändern möchtest.",
+    "checkinSelectFile": "Datei auswählen",
+    "checkinDifferentNameWarning": "Der Name der hochgeladenen Datei ({name}) weicht vom Dateinamen auf dem Server ab. Der Dateiname auf dem Server wird beibehalten.",
+    "checkinCommentLabel": "Kommentar (optional)",
+    "checkinCommentRequired": "Kommentar (erforderlich)",
+    "checkinInProgress": "Wird hochgeladen und eingecheckt…",
+    "checkinFailedStillLocked": "Einchecken fehlgeschlagen. Die Datei bleibt für dich gesperrt; du kannst es erneut versuchen.",
+    "cancelCheckoutTitle": "Auschecken abbrechen",
+    "cancelCheckoutMessage": "Dies gibt dein Auschecken frei, ohne eine neue Version zu erstellen. Ein Grund ist erforderlich.",
+    "cancelCheckoutReasonLabel": "Grund",
+    "forceUnlockTitle": "Sperre erzwungen aufheben",
+    "forceUnlockMessage": "Dies gibt die Sperre frei, ohne eine neue Version zu erstellen oder den Inhalt zu ändern. Ein Grund ist erforderlich, und diese Aktion wird protokolliert.",
+    "forceUnlockReasonLabel": "Grund",
+    "versionsTitle": "Versionen",
+    "versionsCurrent": "Aktuell",
+    "versionsNoRestoreHint": "Um eine ältere Version zur aktuellen zu machen, lade sie herunter und checke sie anschließend als neue Version ein.",
+    "versionsEmpty": "Für diese Datei gibt es noch keinen Versionsverlauf.",
+    "versionNumber": "Version {number}",
+    "createdBy": "Erstellt von",
+    "comment": "Kommentar"
   },
   "permanent": "Permanent",
   "prompts": {
@@ -289,18 +329,23 @@
     "diskUsed": "{used} von {total} belegt",
     "help": "Hilfe",
     "hugoNew": "Hugo Neu",
+    "lockedFiles": "Von dir gesperrt",
     "login": "Anmelden",
     "logout": "Abmelden",
     "myFiles": "Meine Dateien",
     "newFile": "Neue Datei",
     "newFolder": "Neuer Ordner",
+    "noLockedFiles": "Keine von dir gesperrten Dateien",
     "preview": "Vorschau",
     "settings": "Einstellungen",
     "signup": "Registrieren",
     "siteSettings": "Website-Einstellungen"
   },
   "success": {
-    "linkCopied": "Link kopiert!"
+    "linkCopied": "Link kopiert!",
+    "checkedIn": "Neue Version eingecheckt.",
+    "checkoutCancelled": "Auschecken abgebrochen.",
+    "forceUnlocked": "Sperre der Datei erzwungen aufgehoben."
   },
   "time": {
     "days": "Tage",

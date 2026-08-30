@@ -62,6 +62,19 @@ export async function getLock(path: string): Promise<LockInfo> {
   return (await res.json()) as LockInfo;
 }
 
+export interface MyLock {
+  path: string;
+  lockedAt: string;
+}
+
+// myLocks lists every file the current user has checked out, for the
+// sidebar's "locked by you" summary.
+export async function myLocks(): Promise<MyLock[]> {
+  const res = await fetchURL(`/api/locks/mine`, {});
+  const data = (await res.json()) as { locks: MyLock[] };
+  return data.locks;
+}
+
 export async function listVersions(path: string): Promise<VersionsListResponse> {
   const res = await fetchURL(apiPath("resources/versions", path), {});
   return (await res.json()) as VersionsListResponse;

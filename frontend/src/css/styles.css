@@ -391,6 +391,34 @@ html[dir="rtl"] .breadcrumbs .chevron {
   cursor: pointer;
 }
 
+.my-locks {
+  font-size: 0.75em;
+  border-top: 0;
+  margin: 1em 0em 1em 2em;
+}
+
+.my-locks-empty {
+  color: #4caf50;
+}
+
+.my-locks-title {
+  color: var(--red);
+  font-weight: 500;
+  margin: 0 0 0.4em;
+}
+
+.my-locks-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  color: var(--red);
+}
+
+.my-locks-list li {
+  margin: 0.2em 0;
+  word-break: break-all;
+}
+
 /* * * * * * * * * * * * * * * *
  *          ANIMATIONS         *
  * * * * * * * * * * * * * * * */

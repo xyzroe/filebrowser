@@ -158,6 +158,19 @@ func (b *memBackend) DeleteLock(fileID string) error {
 	return nil
 }
 
+func (b *memBackend) ListLocksByOwner(ownerUserID uint) ([]*FileLock, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	var locks []*FileLock
+	for _, l := range b.locks {
+		if l.OwnerUserID == ownerUserID {
+			cp := *l
+			locks = append(locks, &cp)
+		}
+	}
+	return locks, nil
+}
+
 func (b *memBackend) AppendAudit(e *AuditEvent) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()

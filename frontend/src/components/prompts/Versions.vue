@@ -119,6 +119,10 @@ const download = async (v: VersionInfo) => {
       v.versionNumber,
       isOwner.value
     );
+    if (!isOwner.value) {
+      isOwner.value = true;
+      fileStore.reload = true;
+    }
   } catch (e) {
     $showError(e as Error);
   }
